@@ -1,0 +1,65 @@
+##############################
+# HL7 ENGINE RUNTIME FILES  #
+##############################
+
+# Routed HL7 output
+routed/
+
+# Raw received HL7 messages
+received/
+
+# Logs
+logs/
+
+# Runtime SQLite DB (seed DB is committed)
+data/hl7_messages.db
+
+# SQLite temp files
+*.db-shm
+*.db-wal
+
+##############################
+# PYTHON PROJECT ARTIFACTS   #
+##############################
+
+# Bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+.env/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Linting
+ruff_cache/
+
+##############################
+# OS / EDITOR NOISE          #
+##############################
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VS Code
+.vscode/

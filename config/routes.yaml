@@ -1,0 +1,54 @@
+routes:
+  ORU:
+    folder: "routed/ORU"
+    triggers:
+      R01: "routed/ORU/R01"
+      R30: "routed/ORU/R30"
+
+  ADT:
+    folder: "routed/ADT"
+    triggers:
+      A01: "routed/ADT/A01"
+      A03: "routed/ADT/A03"
+      A04: "routed/ADT/A04"
+      A08: "routed/ADT/A08"
+      A11: "routed/ADT/A11"
+
+  ORM:
+    folder: "routed/ORM"
+    triggers:
+      O01: "routed/ORM/O01"
+
+  VXU:
+    folder: "routed/VXU"
+    triggers:
+      V04: "routed/VXU/V04"
+
+  SIU:
+    folder: "routed/SIU"
+    triggers:
+      S12: "routed/SIU/S12"
+      S13: "routed/SIU/S13"
+
+  RDE:
+    folder: "routed/RDE"
+    triggers:
+      O11: "routed/RDE/O11"
+
+  RGV:
+    folder: "routed/RGV"
+    triggers:
+      O15: "routed/RGV/O15"
+
+  DFT:
+    folder: "routed/DFT"
+    triggers:
+      P03: "routed/DFT/P03"
+
+  BAR:
+    folder: "routed/BAR"
+    triggers:
+      P01: "routed/BAR/P01"
+
+  UNKNOWN:
+    folder: "routed/UNKNOWN"

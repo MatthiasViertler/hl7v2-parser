@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HL7MessageProfile xmlns="urn:hl7-org:v2xml">
+  <MetaData>
+    <Name>ORU_R01</Name>
+    <Version>2.3</Version>
+    <Type>ORU</Type>
+    <Event>R01</Event>
+    <Description>HL7 v2.3 ORU_R01 Observation Result</Description>
+  </MetaData>
+
+  <MessageStructure>
+    <Segment name="MSH" usage="R" minOccurs="1" maxOccurs="1"/>
+
+    <Group name="PATIENT_RESULT" usage="R" minOccurs="1" maxOccurs="1">
+      <Group name="PATIENT" usage="R" minOccurs="1" maxOccurs="1">
+        <Segment name="PID" usage="R" minOccurs="1" maxOccurs="1"/>
+      </Group>
+
+      <Group name="ORDER_OBSERVATION" usage="R" minOccurs="1" maxOccurs="unbounded">
+        <Segment name="OBR" usage="R" minOccurs="1" maxOccurs="1"/>
+
+        <Group name="OBSERVATION" usage="R" minOccurs="1" maxOccurs="unbounded">
+          <Segment name="OBX" usage="R" minOccurs="1" maxOccurs="1"/>
+        </Group>
+      </Group>
+    </Group>
+  </MessageStructure>
+</HL7MessageProfile>

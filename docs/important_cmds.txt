@@ -1,0 +1,64 @@
+#################################################
+# HL7 Python Environment Shell Commands / Scripts
+#################################################
+
+cd ~/src/python/medical-it-lab/hl7v2-parser
+pytest -q -s
+
+#################################################
+### REST Server
+#################################################
+cd ~/src/python/medical-it-lab/hl7v2-parser
+uvicorn hl7engine.api:app --reload --port 8000
+
+#################################################
+### HTML Server
+#################################################
+cd ~/src/python/medical-it-lab/hl7v2-parser
+python -m http.server 8080
+
+# Open Browser
+http://localhost:8080/ui/
+
+#################################################
+### Testing
+#################################################
+cd ~/src/python/medical-it-lab/hl7v2-parser
+
+#############
+## Manually:
+#python ./tests/send_fragmented.py
+
+#############
+## Pytest:
+# Your pytest.ini tells pytest:
+# - look inside the tests/ folder
+# - run any file named test_*.py
+# - run any function named test_*
+# Verbose output
+#  pytest -vv
+
+# Run all tests:
+make test
+# or verbose:
+make test PYTEST_FLAGS="-s -vv"
+# Run a single test file:
+make test-file FILE=tests/test_07_listener_router_integration.py
+# Run a single test by name:
+make test-name NAME=test_oru_r01_routing
+#Clean routed/ folder
+make clean-routed
+# Clean SQLite DB
+make clean-db
+# Reset everything
+make reset
+# Run coverage
+make coverage
+
+#################################################
+### SQLite DB
+cd ~/src/python/medical-it-lab/hl7v2-parser
+sqlite3 hl7_messages.db
+.schema messages
+SELECT id, control_id, patient_id, raw_hl7 FROM messages ORDER BY id DESC LIMIT 10;
+

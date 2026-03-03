@@ -1,0 +1,22 @@
+[project]
+name = "hl7engine"
+version = "0.1.0"
+description = "HL7 v2 MLLP listener, router, validator, and parser"
+authors = [
+    { name = "Matthias", email = "your-email@example.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "hl7apy",
+    "pydantic",
+    "pyyaml",
+    "requests",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["hl7engine"]

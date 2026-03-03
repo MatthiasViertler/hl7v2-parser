@@ -1,0 +1,47 @@
+## YAML based validation
+## Hospitals can change validation rules without touching Python
+
+## disable validation entirely:
+# default:
+#   required_segments: []
+#   required_fields: []
+#   severity: AA
+
+## add custom rules:
+# required_fields: ["OBX.5"]   # result value
+
+## required_fields:
+#  - "PID.3"
+#  - "PID.3.1"
+#  - "OBX.5.1"
+#  - "OBR.4.2"
+
+
+validation:
+  default:
+    required_segments: []
+    required_fields: []
+    severity: AR
+
+  ADT:
+    A01:
+      required_segments: ["PID"]
+      required_fields: ["PID.3", "PID.3.1"]
+      severity: AR
+
+    A03:
+      required_segments: ["PID", "PV1"]
+      required_fields: ["PID.3"]
+      severity: AR
+
+  ORU:
+    R01:
+      required_segments: ["PID", "OBR", "OBX"]
+      required_fields: ["PID.3", "PID.3.1", "PID.3.4", "OBX.5.1", "OBR.4.2"]
+      severity: AE
+
+  ORM:
+    O01:
+      required_segments: ["PID", "ORC", "OBR"]
+      required_fields: ["PID.3"]
+      severity: AR

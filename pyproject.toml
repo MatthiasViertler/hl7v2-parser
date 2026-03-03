@@ -1,6 +1,6 @@
 [project]
 name = "hl7engine"
-version = "0.5.0"
+dynamic = ["version"]
 description = "HL7 v2 MLLP listener, router, validator, and parser"
 authors = [
     { name = "Matthias Viertler", email = "matthias.viertler@gmail.com" }
@@ -15,8 +15,13 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["hl7engine"]
+
+[tool.setuptools_scm]
+write_to = "hl7engine/_version.py"
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"

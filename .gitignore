@@ -51,6 +51,9 @@ htmlcov/
 # Linting
 ruff_cache/
 
+# Versioning
+hl7engine/_version.py
+
 ##############################
 # OS / EDITOR NOISE          #
 ##############################

@@ -1,9 +1,10 @@
 import yaml
 import os
 
+from pathlib import Path
 
-def get_project_root():
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+BASE_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = BASE_DIR / "config"
 
 
 # ----------------------------------------------------------------------
@@ -37,10 +38,10 @@ def get_segment(msg, seg_name):
 # ----------------------------------------------------------------------
 class YAMLValidator:
 
-    def __init__(self, yaml_path="validation.yaml"):
+    def __init__(self, config_file="validation.yaml"):
         print("LOADING VALIDATOR FROM:", __file__)
-        project_root = get_project_root()
-        full_path = os.path.join(project_root, yaml_path)
+        full_path = CONFIG_DIR / config_file
+        print("LOADING VALIDATOR FROM:", full_path)
 
         with open(full_path, "r") as f:
             self.config = yaml.safe_load(f)

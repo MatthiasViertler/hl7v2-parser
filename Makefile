@@ -26,6 +26,12 @@ clean-db:
 	cp data/seed/hl7_messages_demo.db data/hl7_messages.db
 
 # ---------------------------------------------------------
+# Prints the runtime of every test, sorted by slowest.
+# ---------------------------------------------------------
+benchmark:
+	$(PYTEST) $(PYTEST_FLAGS) --durations=0
+
+# ---------------------------------------------------------
 # Run full test suite
 # ---------------------------------------------------------
 test:

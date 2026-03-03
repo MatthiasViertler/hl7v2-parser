@@ -4,12 +4,14 @@ import sqlite3
 import datetime
 from pathlib import Path
 
-DB_PATH = "hl7_messages.db"
-
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 RUNTIME_DB = DATA_DIR / "hl7_messages.db"
 SEED_DB = DATA_DIR / "seed" / "hl7_messages_demo.db"
 
+# Always use the runtime DB inside data/
+DB_PATH = RUNTIME_DB
+
+# Copy seed DB if runtime DB does not exist
 if not RUNTIME_DB.exists():
     shutil.copy(SEED_DB, RUNTIME_DB)
 

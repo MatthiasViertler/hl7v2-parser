@@ -1,11 +1,15 @@
 import os
 import yaml
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = BASE_DIR / "config"
 
 class Router:
-    def __init__(self, yaml_path="routes.yaml"):
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-        full_path = os.path.join(base, yaml_path)
+    def __init__(self, config_file="routes.yaml"):        
+        full_path = CONFIG_DIR / config_file
+        print("LOADING VALIDATOR FROM:", full_path)
 
         with open(full_path, "r") as f:
             config = yaml.safe_load(f)

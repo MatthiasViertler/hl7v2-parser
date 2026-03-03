@@ -35,7 +35,8 @@ from pathlib import Path
 
 
 BASE = Path(__file__).resolve().parent.parent
-ROUTES = BASE / "routes.yaml"
+CONFIG_DIR = BASE / "config"
+ROUTES = CONFIG_DIR / "routes.yaml"
 
 
 def test_routes_yaml_schema():

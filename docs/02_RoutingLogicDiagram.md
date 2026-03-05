@@ -29,15 +29,15 @@ This diagram illustrates how the router determines the correct output folder for
 ```mermaid
 flowchart TD
 
-    A[Parsed HL7 (msg_type, trigger, control_id)] --> B[Load routes.yaml]
+    A["Parsed HL7<br/>(msg_type, trigger, control_id)"] --> B[Load routes.yaml]
 
-    B --> C[msg_type defined?]
+    B --> C{msg_type defined?}
     C -- No --> Z[Fallback folder]
-    C -- Yes --> D[trigger defined?]
+    C -- Yes --> D{trigger defined?}
 
     D -- Yes --> E[Use routed/msg_type/trigger]
     D -- No --> F[Use routed/msg_type]
 
-    E --> G[Write control_id.hl7]
+    E --> G[Write file<br/>control_id.hl7]
     F --> G
 ```

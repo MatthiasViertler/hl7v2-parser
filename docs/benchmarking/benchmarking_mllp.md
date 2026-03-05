@@ -108,26 +108,35 @@ A five‑minute run won’t give perfect statistical stability, but it will reve
 - whether memory usage stays stable
 This is enough to validate the harness and decide what to refine before running a longer 20‑minute or 1‑hour benchmark.
 
+## With this structure in place, you can now:
+- compare engine versions
+- compare configuration changes
+- detect regressions
+- tune connection backlog, thread pools, ACK handling
+- export results to CSV/JSON later if needed
+Your benchmark is now a proper load‑testing tool.
+
 ## Sample Run Output
 
-hovergames@mmv-VirtualBox-Ubuntu20:~/src/medical-it-lab/hl7v2-parser$ python3 -m benchmarking.run_benchmark --duration 45
+$ python3 -m benchmarking.run_benchmark --duration 45
 Starting benchmark for 45 seconds...
 Target: 127.0.0.1:2575
 Loaded 3 HL7 message templates.
-[Progress]   5.4s elapsed,  39.6s remaining | sent=70 conn_fail=0 ack_fail=3
-[Progress]  10.4s elapsed,  34.6s remaining | sent=137 conn_fail=15 ack_fail=6
-[Progress]  15.5s elapsed,  29.5s remaining | sent=205 conn_fail=31 ack_fail=6
-[Progress]  20.6s elapsed,  24.4s remaining | sent=272 conn_fail=50 ack_fail=6
-[Progress]  25.7s elapsed,  19.3s remaining | sent=336 conn_fail=68 ack_fail=6
-[Progress]  30.7s elapsed,  14.3s remaining | sent=398 conn_fail=84 ack_fail=6
-[Progress]  35.9s elapsed,   9.1s remaining | sent=464 conn_fail=101 ack_fail=6
-[Progress]  41.1s elapsed,   3.9s remaining | sent=528 conn_fail=117 ack_fail=6
+[Progress]   5.4s elapsed,  39.6s remaining | sent=72 conn_fail=0 ack_fail=3
+[Progress]  10.7s elapsed,  34.3s remaining | sent=144 conn_fail=13 ack_fail=6
+[Progress]  15.8s elapsed,  29.2s remaining | sent=210 conn_fail=31 ack_fail=6
+[Progress]  21.1s elapsed,  23.9s remaining | sent=282 conn_fail=47 ack_fail=6
+[Progress]  26.3s elapsed,  18.7s remaining | sent=349 conn_fail=63 ack_fail=6
+[Progress]  31.7s elapsed,  13.3s remaining | sent=418 conn_fail=80 ack_fail=6
+[Progress]  36.9s elapsed,   8.1s remaining | sent=487 conn_fail=98 ack_fail=6
+[Progress]  42.2s elapsed,   2.8s remaining | sent=560 conn_fail=114 ack_fail=6
 
 --- Benchmark Summary ---
-Messages sent: 578
-Connection failures: 130
+Messages sent: 600
+Connection failures: 123
 ACK failures: 6
 Error types: {'ack_timeout', 'conn_timeout'}
-ACK latency p50: 42.99 ms
-ACK latency p95: 63.95 ms
-ACK latency p99: 73.79 ms
+ACK latency p50: 39.43 ms
+ACK latency p95: 61.70 ms
+ACK latency p99: 72.71 ms
+Throughput: 13.33 msg/sec

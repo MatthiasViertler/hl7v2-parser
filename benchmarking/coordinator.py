@@ -4,6 +4,11 @@ import random
 from .long_lived_worker import LongLivedWorker
 from .burst_worker import BurstWorker
 
+def percentile(data, p):
+    if not data:
+        return None
+    k = int(len(data) * p)
+    return sorted(data)[k]
 
 def run_benchmark(host, port, message_pool, duration_sec=300):
     metrics = {
@@ -64,5 +69,26 @@ def run_benchmark(host, port, message_pool, duration_sec=300):
 
     for w in long_workers:
         w.join()
+
+    # --------- PRINT BENCHMARK SUMMARY ----------
+    p50 = percentile(metrics["ack_latencies"], 0.50)
+    p95 = percentile(metrics["ack_latencies"], 0.95)
+    p99 = percentile(metrics["ack_latencies"], 0.99)
+
+    print("\n--- Benchmark Summary ---")
+    print(f"Messages sent: {metrics['sent']}")
+    print(f"Connection failures: {metrics['conn_failures']}")
+    print(f"ACK failures: {metrics['ack_failures']}")
+    print(f"Error types: {metrics['error_types']}")
+
+    if p50 is not None:
+        print(f"ACK latency p50: {p50*1000:.2f} ms")
+        print(f"ACK latency p95: {p95*1000:.2f} ms")
+        print(f"ACK latency p99: {p99*1000:.2f} ms")
+    else:
+        print("No ACK latencies recorded.")
+        
+    throughput = metrics["sent"] / duration_sec
+    print(f"Throughput: {throughput:.2f} msg/sec") 
 
     return metrics

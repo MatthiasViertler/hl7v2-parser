@@ -27,6 +27,8 @@ Located under `benchmarking/`, the toolkit provides:
 
 ## Project Structure
 
+```
+
 hl7v2-parser/
 │
 ├── hl7engine/                     # Main application package
@@ -109,6 +111,7 @@ hl7v2-parser/
 ├── pytest.ini                     # Pytest configuration
 ├── README.md                      # Main project documentation
 └── .gitignore
+```
 
 ---
 

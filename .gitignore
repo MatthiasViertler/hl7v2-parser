@@ -19,6 +19,13 @@ data/hl7_messages.db
 *.db-wal
 
 ##############################
+# HL7 ENGINE BENCHMARK FILES #
+##############################
+
+# Benchmark result *.json files
+benchmarking/results
+
+##############################
 # PYTHON PROJECT ARTIFACTS   #
 ##############################
 

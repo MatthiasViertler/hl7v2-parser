@@ -10,7 +10,34 @@ def percentile(data, p):
     k = int(len(data) * p)
     return sorted(data)[k]
 
-def run_benchmark(host, port, message_pool, duration_sec=300):
+def histogram(data, bins=10):
+    if not data:
+        return None
+
+    data = sorted(data)
+    mn, mx = data[0], data[-1]
+    step = (mx - mn) / bins if bins > 0 else 1
+
+    # Avoid division by zero if all values are identical
+    if step == 0:
+        return [(mn, len(data))]
+
+    hist = []
+    start = mn
+    idx = 0
+
+    for b in range(bins):
+        end = start + step
+        count = 0
+        while idx < len(data) and data[idx] < end:
+            count += 1
+            idx += 1
+        hist.append((start, end, count))
+        start = end
+
+    return hist
+
+def run_benchmark(host, port, message_pool, duration_sec=300, warmup=0):
     metrics = {
         "sent": 0,
         "ack_latencies": [],
@@ -19,15 +46,68 @@ def run_benchmark(host, port, message_pool, duration_sec=300):
         "ack_failures": 0,
         "error_types": set(), # only store each type of error once in a set
     }
+    
+    # ----- WARM UP ------
+    if warmup > 0:
+        print(f"Warm-up for {warmup} seconds...")
+
+        warmup_end = time.time() + warmup
+        stop_event = threading.Event()
+
+        # Create temporary workers for warm-up
+        warmup_workers = [
+            LongLivedWorker(
+                worker_id=random.randint(1000, 9999),
+                host=host,
+                port=port,
+                rate_per_sec=30,
+                message_pool=message_pool,
+                metrics=None,
+                stop_event=stop_event,
+            ),
+            BurstWorker(
+                worker_id=random.randint(1000, 9999),
+                host=host,
+                port=port,
+                message_pool=message_pool,
+                metrics=None,
+                stop_event=stop_event,
+            ),
+        ]
+
+        # warmup_workers = [
+        #     LongLivedWorker(worker_id=random.randint(1000, 9999), host, port, rate_per_sec=30, message_pool=message_pool, metrics=None, stop_event=stop_event),
+        #     BurstWorker(worker_id=random.randint(1000, 9999), host, port, message_pool=message_pool, metrics=None)
+        # ]
+
+        for w in warmup_workers:
+            w.start()
+
+        # Let them run without collecting metrics
+        while time.time() < warmup_end:
+            time.sleep(0.1)
+
+        # Stop warm-up workers
+        for w in warmup_workers:
+            w.stop()
+        for w in warmup_workers:
+            w.join()
+
+        print("Warm-up complete.\n")
 
     stop_event = threading.Event()
 
     # Long-lived workers
     long_workers = [
-        LongLivedWorker(i, host, port, rate_per_sec=30,
-                        message_pool=message_pool,
-                        metrics=metrics,
-                        stop_event=stop_event)
+        LongLivedWorker(
+            worker_id=i,
+            host=host,
+            port=port,
+            rate_per_sec=30,
+            message_pool=message_pool,
+            metrics=metrics,
+            stop_event=stop_event,
+        )
         for i in range(2)
     ]
 
@@ -59,7 +139,8 @@ def run_benchmark(host, port, message_pool, duration_sec=300):
             host=host,
             port=port,
             message_pool=message_pool,
-            metrics=metrics
+            metrics=metrics,
+            stop_event=stop_event,
         )
         burst.start()
 
@@ -87,7 +168,16 @@ def run_benchmark(host, port, message_pool, duration_sec=300):
         print(f"ACK latency p99: {p99*1000:.2f} ms")
     else:
         print("No ACK latencies recorded.")
-        
+
+    print("\nACK Latency Histogram (ms):")
+    h = histogram([x * 1000 for x in metrics["ack_latencies"]], bins=10)
+    if h:
+        for (start, end, count) in h:
+            bar = "#" * (count // max(1, len(metrics["ack_latencies"]) // 50))
+            print(f"{start:6.1f} – {end:6.1f} ms | {bar} ({count})")
+    else:
+        print("No latency data.")
+
     throughput = metrics["sent"] / duration_sec
     print(f"Throughput: {throughput:.2f} msg/sec") 
 

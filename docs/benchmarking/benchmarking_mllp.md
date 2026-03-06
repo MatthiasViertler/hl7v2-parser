@@ -118,25 +118,78 @@ Your benchmark is now a proper load‑testing tool.
 
 ## Sample Run Output
 
-$ python3 -m benchmarking.run_benchmark --duration 45
-Starting benchmark for 45 seconds...
+$ python3 -m benchmarking.run_benchmark --duration 60
+Starting benchmark for 60 seconds...
 Target: 127.0.0.1:2575
 Loaded 3 HL7 message templates.
-[Progress]   5.4s elapsed,  39.6s remaining | sent=72 conn_fail=0 ack_fail=3
-[Progress]  10.7s elapsed,  34.3s remaining | sent=144 conn_fail=13 ack_fail=6
-[Progress]  15.8s elapsed,  29.2s remaining | sent=210 conn_fail=31 ack_fail=6
-[Progress]  21.1s elapsed,  23.9s remaining | sent=282 conn_fail=47 ack_fail=6
-[Progress]  26.3s elapsed,  18.7s remaining | sent=349 conn_fail=63 ack_fail=6
-[Progress]  31.7s elapsed,  13.3s remaining | sent=418 conn_fail=80 ack_fail=6
-[Progress]  36.9s elapsed,   8.1s remaining | sent=487 conn_fail=98 ack_fail=6
-[Progress]  42.2s elapsed,   2.8s remaining | sent=560 conn_fail=114 ack_fail=6
+[Progress]   5.3s elapsed,  54.7s remaining | sent=70 conn_fail=0 ack_fail=2
+[Progress]  10.4s elapsed,  49.6s remaining | sent=139 conn_fail=15 ack_fail=6
+[Progress]  15.7s elapsed,  44.3s remaining | sent=209 conn_fail=32 ack_fail=6
+[Progress]  20.9s elapsed,  39.1s remaining | sent=279 conn_fail=49 ack_fail=6
+[Progress]  26.2s elapsed,  33.8s remaining | sent=352 conn_fail=69 ack_fail=6
+[Progress]  31.6s elapsed,  28.4s remaining | sent=426 conn_fail=86 ack_fail=6
+[Progress]  36.7s elapsed,  23.3s remaining | sent=496 conn_fail=101 ack_fail=6
+[Progress]  41.8s elapsed,  18.2s remaining | sent=565 conn_fail=117 ack_fail=6
+[Progress]  47.1s elapsed,  12.9s remaining | sent=636 conn_fail=137 ack_fail=6
+[Progress]  52.3s elapsed,   7.7s remaining | sent=706 conn_fail=153 ack_fail=6
+[Progress]  57.6s elapsed,   2.4s remaining | sent=776 conn_fail=172 ack_fail=6
 
 --- Benchmark Summary ---
-Messages sent: 600
-Connection failures: 123
+Messages sent: 807
+Connection failures: 181
 ACK failures: 6
 Error types: {'ack_timeout', 'conn_timeout'}
-ACK latency p50: 39.43 ms
-ACK latency p95: 61.70 ms
-ACK latency p99: 72.71 ms
-Throughput: 13.33 msg/sec
+ACK latency p50: 38.77 ms
+ACK latency p95: 60.44 ms
+ACK latency p99: 71.95 ms
+Throughput: 13.45 msg/sec
+-------------------------
+
+### Interpretation: Where the bottleneck is
+1) ACK handling is stable
+Only 6 ACK failures across 807 messages.
+Our p50/p95/p99 latencies are tight and healthy:
+- p50 ≈ 39 ms
+- p95 ≈ 60 ms
+- p99 ≈ 72 ms
+This is excellent for an HL7 MLLP engine under load.
+It means:
+- The engine processes messages reliably once a connection is established.
+- ACK generation is not the bottleneck.
+- Internal parsing + routing + ACK logic is performing well.
+
+2) Connection acceptance is the bottleneck
+181 connection failures in 60 seconds is significant.
+This is the signature of an MLLP listener that:
+- accepts connections too slowly
+- has a small backlog queue
+- is single‑threaded or single‑process
+- is blocked while processing messages
+- or is using synchronous I/O without concurrency
+Our burst workers are hammering the accept loop, and the engine can’t keep up.
+This is exactly why the benchmark uses both long‑lived and burst workers — they expose different weaknesses.
+
+3) Throughput: 13.45 msg/sec
+This is the sustained throughput of our engine under mixed load.
+Given:
+- 2 long‑lived workers at 30 msg/sec each
+- burst workers adding spikes
+…our engine is only able to process ~13.5 msg/sec.
+This is not unusual for a synchronous HL7 MLLP implementation, but it’s a clear indicator of where to optimize next.
+
+### What to do next (in your HL7 engine)
+Based on our results, the next tuning steps for the engine itself are:
+1) Increase the TCP backlog
+On Linux, this is controlled by:
+- listen(backlog) in your server code
+- /proc/sys/net/core/somaxconn
+- /proc/sys/net/ipv4/tcp_max_syn_backlog
+
+2) Ensure the accept loop is non‑blocking
+If our engine processes messages on the same thread that accepts connections, it will choke under burst load.
+
+3) Move message processing to worker threads
+Accept → hand off → return to accept loop immediately.
+
+4) Consider persistent connections
+If our engine expects clients to keep connections open, burst‑style traffic will overwhelm it.

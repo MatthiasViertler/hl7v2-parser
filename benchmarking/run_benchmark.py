@@ -24,17 +24,33 @@ def load_messages():
     return messages
 
 def export_results_json(metrics, duration_sec, output_path=None):
-    # Build a structured result object
-    result = {
-        "timestamp": datetime.now().isoformat(),
-        "duration_sec": duration_sec,
-        "sent": metrics["sent"],
-        "conn_failures": metrics["conn_failures"],
-        "ack_failures": metrics["ack_failures"],
-        "error_types": list(metrics["error_types"]),
-        "ack_latencies_ms": [x * 1000 for x in metrics["ack_latencies"]],
-        "connection_times_ms": [x * 1000 for x in metrics["connection_times"]],
-    }
+    # timestamp = time.strftime("%Y%m%d_%H%M%S")
+    # if filename is None:
+    #     filename = f"run_{timestamp}.json"
+    
+    # CASE 1: normal benchmark → metrics is a dict
+    if not isinstance(metrics, list):
+        # Build a structured result object
+        result = {
+            "mode": "benchmark",
+            "timestamp": datetime.now().isoformat(),
+            "duration_sec": duration_sec,
+            "sent": metrics["sent"],
+            "ack_failures": metrics["ack_failures"],
+            "conn_failures": metrics["conn_failures"],
+            "error_types": list(metrics["error_types"]),
+            "ack_latencies_ms": [x * 1000 for x in metrics["ack_latencies"]],
+            "connection_times_ms": [x * 1000 for x in metrics["connection_times"]],
+        }
+    
+    # CASE 2: sweep mode → metrics is a list        
+    else: # isinstance(metrics, list)
+        result = {
+            "mode": "sweep",
+            "timestamp": datetime.now().isoformat(),
+            "duration_sec": duration_sec,
+            "results": metrics
+        }
 
     # Default filename if none provided
     if output_path is None:
@@ -65,10 +81,41 @@ def main():
         help="Run connection-only stress test (no HL7 messages)"
     )
     
+    parser.add_argument(
+        "--max-throughput",
+        action="store_true",
+        help="Run maximum message throughput test (long-lived workers only)"
+    )
+    
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="Run concurrency sweep (1,2,4,8,16 workers)"
+    )
+
     parser.add_argument("--json-out", type=str, default=None,
-                        help="Optional path to save JSON results")
+                        help="Optional path to save JSON results"
+    )
+    
+    parser.add_argument(
+        "--visualize",
+        type=str,
+        help="Path to a JSON results file to visualize"
+    )
 
     args = parser.parse_args()
+    
+    if args.visualize:
+        from .visualize import load_results, plot_sweep, plot_latency, plot_percentiles
+        data = load_results(args.visualize)
+
+        if data["mode"] == "sweep":
+            plot_sweep(data["results"])
+        else:
+            plot_latency(data["ack_latencies_ms"])
+            plot_percentiles(data["ack_latencies_ms"])
+
+        return
 
     message_pool = load_messages()
 
@@ -83,6 +130,8 @@ def main():
         duration_sec=args.duration,
         warmup=args.warmup,
         conn_stress=args.conn_stress,
+        max_throughput=args.max_throughput,
+        sweep=args.sweep,
     )
 
     if args.json_out is not None:

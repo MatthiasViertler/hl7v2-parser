@@ -275,4 +275,38 @@ Reuse connections where possible.
 E. Consider pipelining or batching
 If our MLLP engine supports it.
 
+## Concurrency Sweep Test
+
+"$ python3 -m benchmarking.run_benchmark --duration 10 --sweep"
+Starting benchmark for 10 seconds...
+Target: 127.0.0.1:2575
+Loaded 3 HL7 message templates.
+Warm-up for 5 seconds...
+Warm-up complete.
+
+Running concurrency sweep...
+
+--- Sweep: 1 workers ---
+Workers=1 | Throughput=28.30 msg/sec | ACK fails=0
+
+--- Sweep: 2 workers ---
+Workers=2 | Throughput=28.90 msg/sec | ACK fails=1
+
+--- Sweep: 4 workers ---
+Workers=4 | Throughput=27.00 msg/sec | ACK fails=3
+
+--- Sweep: 8 workers ---
+Workers=8 | Throughput=25.70 msg/sec | ACK fails=7
+
+--- Sweep: 16 workers ---
+Workers=16 | Throughput=25.30 msg/sec | ACK fails=15
+
+=== Concurrency Sweep Summary ===
+Workers | Throughput (msg/sec) | ACK Failures
+---------------------------------------------
+      1 |                28.30 |            0
+      2 |                28.90 |            1
+      4 |                27.00 |            3
+      8 |                25.70 |            7
+     16 |                25.30 |           15
 

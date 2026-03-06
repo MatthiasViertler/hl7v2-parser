@@ -21,7 +21,14 @@ class LongLivedWorker(threading.Thread):
     def run(self):
         client = MLLPClient(self.host, self.port)
         is_warmup = self.metrics is None
-        
+
+        if self.rate is not None:
+            try:
+                interval = 1.0 / self.rate
+                time.sleep(interval)
+            except ZeroDivisionError:
+                pass  # rate=0 would mean "no sending", but we don't use that
+
         # --- CONNECT ---
         try:
             t0 = time.perf_counter()
@@ -55,7 +62,8 @@ class LongLivedWorker(threading.Thread):
 
         # --- REAL BENCHMARK MODE ---
         try:
-            interval = 1.0 / self.rate
+            # if self.rate is not None:
+            #     interval = 1.0 / self.rate
 
             while not self._stop_event.is_set():
                 msg = random.choice(self.message_pool)
@@ -70,6 +78,6 @@ class LongLivedWorker(threading.Thread):
                     #self.metrics["errors"].append(str(e))
                     break
 
-                time.sleep(interval)
+                # time.sleep(interval)
         finally:
             client.close()

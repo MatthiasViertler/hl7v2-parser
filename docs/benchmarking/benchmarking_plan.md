@@ -1,4 +1,4 @@
-# Plan 1
+# Benchmark Architecture Considerations
 
 ## Benchmarking goals
 The engine has three performance‑critical areas:
@@ -141,7 +141,7 @@ This shifts the focus toward architecture, concurrency, and I/O, which are the a
 ===========
 
 
-# Plan 2
+# Plan Considerations
 
 Your priorities give us a very clean boundary for how to approach performance work: you want the engine to get faster, but not at the cost of readability, maintainability, or architectural clarity. That’s a strong constraint, and it actually helps us focus on the optimizations that matter most for a real‑world HL7 router.
 
@@ -322,3 +322,15 @@ Measure:
 - Behavior under burst traffic
 - Behavior under slow clients
 These matter more than raw speed in healthcare systems.
+
+# What we can add next in the benchmark
+Now that you’ve isolated the accept loop, we can go deeper.
+Here are the next optional upgrades:
+Step 5 — Max Throughput Mode
+How many HL7 messages/sec can the server process when connections are stable?
+Step 6 — Latency Under Saturation Mode
+What happens to ACK latency when the server is overloaded?
+Step 7 — Export histograms for connection times
+Useful for diagnosing jitter.
+Step 8 — Add a concurrency sweep
+Automatically test with 1, 2, 4, 8, 16, 32 workers.

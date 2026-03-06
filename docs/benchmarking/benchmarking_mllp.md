@@ -118,7 +118,7 @@ Your benchmark is now a proper load‑testing tool.
 
 ## Sample Run Output
 
-$ python3 -m benchmarking.run_benchmark --duration 60
+"$ python3 -m benchmarking.run_benchmark --duration 60"
 Starting benchmark for 60 seconds...
 Target: 127.0.0.1:2575
 Loaded 3 HL7 message templates.
@@ -193,3 +193,86 @@ Accept → hand off → return to accept loop immediately.
 
 4) Consider persistent connections
 If our engine expects clients to keep connections open, burst‑style traffic will overwhelm it.
+
+## Connection Stress Test
+
+"$ python3 -m benchmarking.run_benchmark --duration 30 --conn-stress"
+Starting benchmark for 30 seconds...
+Target: 127.0.0.1:2575
+Loaded 3 HL7 message templates.
+Warm-up for 5 seconds...
+Warm-up complete.
+
+Running connection-only stress test...
+[ConnStress]   5.0s elapsed,  25.0s remaining | connections=886 conn_fail=0
+[ConnStress]  10.0s elapsed,  20.0s remaining | connections=3380 conn_fail=0
+[ConnStress]  15.1s elapsed,  14.9s remaining | connections=4944 conn_fail=0
+[ConnStress]  20.1s elapsed,   9.9s remaining | connections=6423 conn_fail=0
+[ConnStress]  25.1s elapsed,   4.9s remaining | connections=7092 conn_fail=0
+
+--- Connection Stress Summary ---
+Successful connections: 8822
+Connection failures: 0
+Error types: set()
+Average connection time: 34.86 ms
+Connections per second: 294.07
+
+JSON results saved to: /home/hovergames/src/medical-it-lab/hl7v2-parser/benchmarking/results/run_20260306_115044.json
+
+### Interpretation of Results
+
+ 1. Our server can accept ~300 connections/sec with ZERO failures
+This is a very strong accept loop.
+It means:
+- backlog is not overflowing
+- the OS is not dropping SYNs
+- the listener thread is not blocking
+- the server can handle bursts of new connections easily
+- the TCP handshake path is healthy
+This is excellent news.
+2. This proves the connection failures in the mixed test are NOT caused by the accept loop
+Earlier we saw 'Connection failures: 181' but now 'Connection failures: 0'.
+
+This tells us something very specific:
+- The accept loop is fine
+- The backlog is fine
+- The OS networking stack is fine
+- The server can handle bursts of new connections
+--> The failures only appear when messages are being processed. This is the key insight.
+
+ 3. What this means: our bottleneck is inside the message‑processing path
+When we run the full benchmark:
+- long‑lived workers keep connections open
+- burst workers create new connections
+- each connection sends HL7 messages
+- the server must parse, route, and ACK each message
+- this work happens before the server returns to accept()
+So when the server is busy processing HL7 messages, it stops accepting new connections fast enough, and burst workers time out.
+This is a classic MLLP server bottleneck.
+
+4. The connection‑only test gives us a clear diagnosis
+- Accept loop is fast
+- Connection handling is fast
+- TCP handshake is fast
+- No backlog overflow
+- No OS‑level bottleneck
+--> Message processing is blocking the accept loop. This is exactly why we built this mode — and it’s doing its job perfectly.
+
+### What to do next (server‑side tuning)
+Now that we know where the bottleneck is, the next steps are clear:
+A. Move message processing off the accept thread
+Accept → hand off to worker thread → return to accept immediately.
+
+B. Increase concurrency in the message handler
+Thread pool, async I/O, or event loop.
+
+C. Ensure ACK generation is non‑blocking
+ACKs should be generated quickly and independently.
+
+D. Avoid per‑connection overhead
+Reuse connections where possible.
+
+E. Consider pipelining or batching
+If our MLLP engine supports it.
+
+

@@ -59,6 +59,12 @@ def main():
     parser.add_argument("--warmup", type=int, default=5,
                     help="Warm-up duration in seconds (default: 5)")
     
+    parser.add_argument(
+        "--conn-stress",
+        action="store_true",
+        help="Run connection-only stress test (no HL7 messages)"
+    )
+    
     parser.add_argument("--json-out", type=str, default=None,
                         help="Optional path to save JSON results")
 
@@ -76,6 +82,7 @@ def main():
         message_pool=message_pool,
         duration_sec=args.duration,
         warmup=args.warmup,
+        conn_stress=args.conn_stress,
     )
 
     if args.json_out is not None:

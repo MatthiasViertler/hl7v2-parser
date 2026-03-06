@@ -3,6 +3,7 @@ import time
 import random
 from .long_lived_worker import LongLivedWorker
 from .burst_worker import BurstWorker
+from .connection_worker import ConnectionWorker
 
 def percentile(data, p):
     if not data:
@@ -37,7 +38,7 @@ def histogram(data, bins=10):
 
     return hist
 
-def run_benchmark(host, port, message_pool, duration_sec=300, warmup=0):
+def run_benchmark(host, port, message_pool, duration_sec=300, warmup=0, conn_stress=False):
     metrics = {
         "sent": 0,
         "ack_latencies": [],
@@ -75,11 +76,6 @@ def run_benchmark(host, port, message_pool, duration_sec=300, warmup=0):
             ),
         ]
 
-        # warmup_workers = [
-        #     LongLivedWorker(worker_id=random.randint(1000, 9999), host, port, rate_per_sec=30, message_pool=message_pool, metrics=None, stop_event=stop_event),
-        #     BurstWorker(worker_id=random.randint(1000, 9999), host, port, message_pool=message_pool, metrics=None)
-        # ]
-
         for w in warmup_workers:
             w.start()
 
@@ -94,6 +90,70 @@ def run_benchmark(host, port, message_pool, duration_sec=300, warmup=0):
             w.join()
 
         print("Warm-up complete.\n")
+    # ---- END WARM UP ----
+
+    # ---- CONN STRESS MODE ----
+    if conn_stress:
+        print("Running connection-only stress test...")
+
+        stop_event = threading.Event()
+
+        # You can tune the number of workers later
+
+        workers = [
+            ConnectionWorker(
+                worker_id=i,
+                host=host,
+                port=port,
+                metrics=metrics,
+                stop_event=stop_event
+            )
+            for i in range(10)  # number of concurrent connectors
+        ]
+
+        for w in workers:
+            w.start()
+
+        start_time = time.time()
+        next_progress = start_time + 5
+
+        while True:
+            now = time.time()
+            elapsed = now - start_time
+
+            if elapsed >= duration_sec:
+                break
+
+            if now >= next_progress:
+                remaining = duration_sec - elapsed
+                print(
+                    f"[ConnStress] {elapsed:5.1f}s elapsed, {remaining:5.1f}s remaining | "
+                    f"connections={metrics['sent']} "
+                    f"conn_fail={metrics['conn_failures']}"
+                )
+                next_progress = now + 5
+
+            time.sleep(0.05)
+
+        stop_event.set()
+        for w in workers:
+            w.join()
+
+        # Print Connection Stress Test Results
+        print("\n--- Connection Stress Summary ---")
+        print(f"Successful connections: {metrics['sent']}")
+        print(f"Connection failures: {metrics['conn_failures']}")
+        print(f"Error types: {metrics['error_types']}")
+
+        if metrics["connection_times"]:
+            avg = sum(metrics["connection_times"]) / len(metrics["connection_times"])
+            print(f"Average connection time: {avg*1000:.2f} ms")
+            print(f"Connections per second: {metrics['sent'] / duration_sec:.2f}")
+        else:
+            print("No successful connections recorded.")
+
+        return metrics
+    # ---- END CONN STRESS MODE ----
 
     stop_event = threading.Event()
 

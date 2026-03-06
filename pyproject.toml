@@ -8,10 +8,20 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    # Core HL7 engine dependencies
     "hl7apy",
     "pydantic",
     "pyyaml",
     "requests",
+
+    # Benchmarking + visualization dependencies
+    "numpy",
+    "matplotlib",
+    "python-dateutil",
+
+    # Optional but useful for parsing or advanced regex
+    "regex",
+    "lxml",
 ]
 
 [build-system]
@@ -19,7 +29,7 @@ requires = ["setuptools>=61.0", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["hl7engine"]
+packages = ["hl7engine", "benchmarking"]
 
 [tool.setuptools_scm]
 write_to = "hl7engine/_version.py"

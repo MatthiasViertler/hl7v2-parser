@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+# Load alert rules from the same folder
+rule_files:
+  - "alert_rules.yml" # Prometheus resolves paths relative to the directory of the config file
+
+scrape_configs:
+  # ---------------------------------------------------------
+  # LOCAL HL7 SERVER SCRAPE (enabled)
+  # ---------------------------------------------------------
+  - job_name: "hl7_mllp_server_local"
+    static_configs:
+      - targets: ["localhost:8010"]   # our /metrics endpoint
+
+  # ---------------------------------------------------------
+  # REMOTE HL7 SERVERS (disabled for now)
+  # Uncomment and add IPs when needed
+  # ---------------------------------------------------------
+  # - job_name: "hl7_mllp_server_remote"
+  #   static_configs:
+  #     - targets:
+  #         - "10.0.0.12:8000"
+  #         - "10.0.0.13:8000"
+  #         - "10.0.0.14:8000"

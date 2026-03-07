@@ -14,6 +14,10 @@ logs/
 # Runtime SQLite DB (seed DB is committed)
 data/hl7_messages.db
 
+# Prometheus TSDB runtime files ('data/lock/', 'data/wal', etc.)
+data/
+!data/README.md
+
 # SQLite temp files
 *.db-shm
 *.db-wal
@@ -23,7 +27,7 @@ data/hl7_messages.db
 ##############################
 
 # Benchmark result *.json files
-benchmarking/results
+benchmarking/results/
 
 ##############################
 # PYTHON PROJECT ARTIFACTS   #
@@ -62,6 +66,20 @@ ruff_cache/
 hl7engine/_version.py
 
 ##############################
+# PROMETHEUS / GRAFANA       #
+##############################
+
+prometheus-data/
+grafana-data/
+
+##############################
+# UI / FRONTEND ARTIFACTS    #
+##############################
+
+ui/dist/
+ui/node_modules/
+
+##############################
 # OS / EDITOR NOISE          #
 ##############################
 
@@ -71,5 +89,10 @@ hl7engine/_version.py
 # Windows
 Thumbs.db
 
-# VS Code
-.vscode/
+##############################
+# VS CODE                    #
+##############################
+
+# Ignore everything in .vscode except launch.json
+.vscode/*
+!.vscode/launch.json

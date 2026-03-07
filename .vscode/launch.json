@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run MLLP Server (with Prometheus)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "hl7engine.mllp_server",
+      "args": ["--prometheus"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Run MLLP Server (no Prometheus)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "hl7engine.mllp_server",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

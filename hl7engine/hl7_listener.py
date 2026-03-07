@@ -6,6 +6,7 @@
 # - Field, Component and Subcomponent support
 #
 # 2026-Mar-01 (revised with HL7 v2.3 → v2.3.1 normalization)
+# 2026-Mar-07 (refactored for fast & slow track to handle early ACKs)
 
 import os
 import datetime
@@ -23,6 +24,11 @@ router = Router("routes.yaml")
 init_db()
 
 print(">>> USING hl7engine.hl7_listener FROM:", __file__)
+
+
+# ------------------------------------------------------------
+# NORMALIZATION HELPERS
+# ------------------------------------------------------------
 
 def normalize_hl7(raw: str) -> str:
     """Normalize line endings to HL7 standard (CR)."""
@@ -55,6 +61,10 @@ def normalize_version(raw_hl7: str) -> str:
     return "\r".join(segments)
 
 
+# ------------------------------------------------------------
+# ACK BUILDERS
+# ------------------------------------------------------------
+
 def build_ack_from_msg(original_msg, code="AA", text="OK") -> str:
     """Build ACK using fields from the original message."""
     msh = original_msg.msh
@@ -79,71 +89,60 @@ def build_ack_simple(control_id: str, code="AA", text="OK") -> str:
     return ack
 
 
-def process_hl7_message(raw_hl7: str, sender_ip: str) -> str:
+# ------------------------------------------------------------
+# NEW: FAST PHASE (parse + validate + build ACK)
+# ------------------------------------------------------------
+
+def fast_ack_phase(raw_hl7: str, sender_ip: str):
     """
-    Core HL7 processing:
-    - normalize line endings
-    - normalize version (2.3 → 2.3.1)
+    FAST PHASE:
+    - normalize
+    - version fix
     - parse
+    - extract metadata
     - validate
-    - route
-    - log
-    - DB insert
-    - return ACK string (no MLLP framing)
+    - build ACK
+
+    Returns:
+        ack (str)
+        context (dict) → used later for routing, DB, logging
     """
+
     raw_hl7 = normalize_hl7(raw_hl7)
 
     # Empty frame
     if not raw_hl7.strip():
-        print("Empty HL7 frame received — ignoring.")
-        log_event({
-            "sender": sender_ip,
-            "raw_hl7": "",
-            "status": "empty_frame",
-            "ack_sent": False
-        })
         ack = build_ack_simple("UNKNOWN", "AE", "Empty HL7 frame")
-        insert_message(
-            sender_ip=sender_ip,
-            raw_hl7="",
-            message_type=None,
-            trigger_event=None,
-            control_id=None,
-            patient_id=None,
-            routing_folder=None,
-            routing_path=None,
-            ack=ack,
-            status="empty_frame"
-        )
-        return ack
+        return ack, {
+            "raw_hl7_norm": "",
+            "msg": None,
+            "msg_type": None,
+            "trigger_event": None,
+            "control_id": None,
+            "patient_id": None,
+            "folder": None,
+            "routed_path": None,
+            "ack_code": "AE",
+            "error_text": "Empty HL7 frame",
+            "sender_ip": sender_ip,
+        }
 
-    # Not starting with MSH
+    # Invalid HL7 (no MSH)
     if not raw_hl7.startswith("MSH"):
-        print("Invalid HL7 message, skipping:", repr(raw_hl7[:80]))
         ack = build_ack_simple("UNKNOWN", "AE", "Invalid HL7 message")
-        log_event({
-            "sender": sender_ip,
-            "raw_hl7": raw_hl7,
-            "message_type": None,
+        return ack, {
+            "raw_hl7_norm": raw_hl7,
+            "msg": None,
+            "msg_type": None,
             "trigger_event": None,
             "control_id": "UNKNOWN",
-            "routing_folder": None,
-            "ack_sent": True,
-            "status": "invalid"
-        })
-        insert_message(
-            sender_ip=sender_ip,
-            raw_hl7=raw_hl7,
-            message_type=None,
-            trigger_event=None,
-            control_id="UNKNOWN",
-            patient_id=None,
-            routing_folder=None,
-            routing_path=None,
-            ack=ack,
-            status="invalid"
-        )
-        return ack
+            "patient_id": None,
+            "folder": None,
+            "routed_path": None,
+            "ack_code": "AE",
+            "error_text": "Invalid HL7 message",
+            "sender_ip": sender_ip,
+        }
 
     # Pretty-print incoming message
     print("\n--- Received HL7 Message ---")
@@ -152,7 +151,6 @@ def process_hl7_message(raw_hl7: str, sender_ip: str) -> str:
             print(line)
     print("----------------------------\n")
 
-    # Normalize version (2.3 → 2.3.1)
     raw_hl7_norm = normalize_version(raw_hl7)
 
     msg = None
@@ -160,19 +158,14 @@ def process_hl7_message(raw_hl7: str, sender_ip: str) -> str:
     trigger_event = None
     control_id = "UNKNOWN"
     patient_id = None
-    folder = None
-    routed_path = None
     ack_code = "AE"
     error_text = None
-    ack = None
 
     try:
-        # 1) Parse HL7
-        print("hl7_listener::ParseHL7 - Prior Call")
+        # Parse
         msg = parse_message(raw_hl7_norm, find_groups=False)
-        print("hl7_listener::ParseHL7 - Post Call")
 
-        # 2) Extract metadata
+        # Extract metadata
         try:
             patient_id = msg.pid.pid_3.to_er7().split("^")[0]
         except Exception:
@@ -190,102 +183,110 @@ def process_hl7_message(raw_hl7: str, sender_ip: str) -> str:
             msg_type = "UNKNOWN"
             trigger_event = None
 
-        # 3) VALIDATION
+        # VALIDATION
         ack_code, error_text = validator.validate(msg)
-        print(f"[VALIDATION] Result: {ack_code} ({error_text})")
-
-        # 4a) ROUTING (YAML)
-        print(f"[ROUTER] Routing {msg_type} ...")
-        folder, routed_path = router.route(msg_type, raw_hl7_norm)
-        print(f"[ROUTER] Parent folder: {folder}")
-        print(f"[ROUTER] Routed path: {routed_path}")
-        
-        # 4b) WRITE ROUTED HL7 MESSAGE TO FILE
-        try:
-            # Ensure target directory exists (robust even if router already creates it)
-            os.makedirs(routed_path, exist_ok=True)
-
-            # Filename: CONTROLID.hl7 (fallback if missing)
-            fname = f"{control_id or 'UNKNOWN'}.hl7"
-            full_path = os.path.join(routed_path, fname)
-            print(">>> Writing file:", full_path)
-
-            with open(full_path, "w", encoding="utf-8") as f:
-                f.write(raw_hl7_norm)
-                print(">>> FLUSHING FILE NOW")
-                f.flush()
-                os.fsync(f.fileno())
-            
-            print(f"[ROUTER] Message written to file: {full_path}")
-
-        except Exception as e:
-            print(f"[ROUTER] ERROR writing routed file: {e}")
-
-        # 5) LOGGING (parsed)
-        log_event({
-            "sender": sender_ip,
-            "raw_hl7": raw_hl7_norm,
-            "message_type": msg_type,
-            "trigger_event": trigger_event,
-            "control_id": control_id,
-            "patient_id": patient_id,
-            "routing_folder": folder,
-            "routing_path": routed_path,
-            "ack_sent": True,
-            "status": "parsed" if msg else "invalid"
-        })
-
-    except HL7apyException as e:
-        print("HL7apy parsing error:", e)
-
-        msg_type = "UNKNOWN"
-        trigger_event = None
-        control_id = "UNKNOWN"
-
-        log_event({
-            "sender": sender_ip,
-            "raw_hl7": raw_hl7_norm,
-            "error": str(e),
-            "status": f"invalid - HL7apy parsing error: {e}"
-        })
 
     except Exception as e:
-        print("Unexpected parsing error:", e)
+        # Parsing error → fallback ACK
+        ack = build_ack_simple("UNKNOWN", "AE", f"Parsing error: {e}")
+        return ack, {
+            "raw_hl7_norm": raw_hl7_norm,
+            "msg": None,
+            "msg_type": "UNKNOWN",
+            "trigger_event": None,
+            "control_id": "UNKNOWN",
+            "patient_id": None,
+            "folder": None,
+            "routed_path": None,
+            "ack_code": "AE",
+            "error_text": str(e),
+            "sender_ip": sender_ip,
+        }
 
-        msg_type = "UNKNOWN"
-        trigger_event = None
-        control_id = "UNKNOWN"
-
-        log_event({
-            "sender": sender_ip,
-            "raw_hl7": raw_hl7_norm,
-            "error": str(e),
-            "status": f"invalid - Unexpected parsing error: {e}"
-        })
-
-    # ------------------------------------------------------------
-    # ALWAYS SEND ACK (even on errors)
-    # ------------------------------------------------------------
+    # Build ACK (fast)
     if msg is not None:
         ack = build_ack_from_msg(msg, ack_code, error_text or "")
     else:
         ack = build_ack_simple(control_id, ack_code, error_text or "Error")
 
-    print("ACK sent (pretty):")
-    print(ack.replace("\r", "\n"))
-    print("ACK raw (no MLLP framing):", repr(ack))
+    # Return ACK + context for slow phase
+    return ack, {
+        "raw_hl7_norm": raw_hl7_norm,
+        "msg": msg,
+        "msg_type": msg_type,
+        "trigger_event": trigger_event,
+        "control_id": control_id,
+        "patient_id": patient_id,
+        "folder": None,
+        "routed_path": None,
+        "ack_code": ack_code,
+        "error_text": error_text,
+        "sender_ip": sender_ip,
+    }
 
-    # Final logging with ACK
+
+# ------------------------------------------------------------
+# NEW: SLOW PHASE (routing, file writing, DB insert, logging)
+# ------------------------------------------------------------
+
+def slow_processing_phase(ctx: dict):
+    """
+    SLOW PHASE:
+    - routing
+    - file writing
+    - logging
+    - DB insert
+
+    This runs AFTER ACK is already sent.
+    """
+
+    raw_hl7_norm = ctx["raw_hl7_norm"]
+    msg = ctx["msg"]
+    msg_type = ctx["msg_type"]
+    trigger_event = ctx["trigger_event"]
+    control_id = ctx["control_id"]
+    patient_id = ctx["patient_id"]
+    sender_ip = ctx["sender_ip"]
+    ack_code = ctx["ack_code"]
+    error_text = ctx["error_text"]
+
+    folder = None
+    routed_path = None
+
+    # ROUTING
+    if msg is not None:
+        try:
+            folder, routed_path = router.route(msg_type, raw_hl7_norm)
+            ctx["folder"] = folder
+            ctx["routed_path"] = routed_path
+
+            os.makedirs(routed_path, exist_ok=True)
+            fname = f"{control_id or 'UNKNOWN'}.hl7"
+            full_path = os.path.join(routed_path, fname)
+
+            with open(full_path, "w", encoding="utf-8") as f:
+                f.write(raw_hl7_norm)
+                f.flush()
+                os.fsync(f.fileno())
+
+        except Exception as e:
+            print(f"[ROUTER] ERROR writing routed file: {e}")
+
+    # LOGGING
     log_event({
         "sender": sender_ip,
+        "raw_hl7": raw_hl7_norm,
+        "message_type": msg_type,
+        "trigger_event": trigger_event,
         "control_id": control_id,
-        "ack": ack,
+        "patient_id": patient_id,
+        "routing_folder": folder,
+        "routing_path": routed_path,
         "ack_sent": True,
-        "status": ack_code
+        "status": ack_code,
     })
 
-    # Final DB insert (single, consolidated record)
-    print(">>> Inserting DB row for:", control_id)
+    # DB INSERT
     insert_message(
         sender_ip=sender_ip,
         raw_hl7=raw_hl7_norm,
@@ -295,8 +296,20 @@ def process_hl7_message(raw_hl7: str, sender_ip: str) -> str:
         patient_id=patient_id,
         routing_folder=folder,
         routing_path=routed_path,
-        ack=ack,
-        status=ack_code
+        ack=build_ack_simple(control_id, ack_code, error_text or ""),
+        status=ack_code,
     )
 
+
+# ------------------------------------------------------------
+# BACKWARD COMPATIBILITY: original API
+# ------------------------------------------------------------
+
+def process_hl7_message(raw_hl7: str, sender_ip: str) -> str:
+    """
+    Legacy API — preserved for compatibility.
+    Performs BOTH fast and slow phases synchronously.
+    """
+    ack, ctx = fast_ack_phase(raw_hl7, sender_ip)
+    slow_processing_phase(ctx)
     return ack

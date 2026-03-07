@@ -1,0 +1,51 @@
+{
+  "title": "HL7 MLLP Server",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Messages per second",
+      "targets": [
+        {
+          "expr": "rate(hl7_messages_received[1m])",
+          "legendFormat": "messages_received"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "ACK latency p95 / p99 (ms)",
+      "targets": [
+        {
+          "expr": "hl7_ack_latency_ms_p95",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "hl7_ack_latency_ms_p99",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Queue depth",
+      "targets": [
+        {
+          "expr": "hl7_queue_depth",
+          "legendFormat": "queue_depth"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Worker saturation",
+      "targets": [
+        {
+          "expr": "hl7_workers_busy / hl7_workers_max",
+          "legendFormat": "saturation"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 36,
+  "version": 1
+}

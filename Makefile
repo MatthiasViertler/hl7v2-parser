@@ -117,9 +117,13 @@ bench-visualize:
 
 # ---------------------------------------------------------
 # Run benchmark against a temporary server instance
+# Do NOT kill server instance with 
+#    pkill -f "hl7engine.mllp_server" || true;
+# To not kill Prometheus server instance
 # ---------------------------------------------------------
 run-benchmark-max-throughput-against-server:
 	@echo "Starting HL7 MLLP server in background..."
+	@{ \
 	@python3 -m hl7engine.mllp_server &
 	@SERVER_PID=$$!; \
 	echo "Server PID: $$SERVER_PID"; \
@@ -128,11 +132,13 @@ run-benchmark-max-throughput-against-server:
 	echo "Running benchmark..."; \
 	$(BENCH) --duration 10 --max-throughput; \
 	echo "Stopping server..."; \
-	pkill -f "hl7engine.mllp_server" || true; \
+	kill $$SERVER_PID || true; \
 	echo "Done."
+	}
 
 run-benchmark-sweep-against-server:
 	@echo "Starting HL7 MLLP server in background..."
+	@{ \
 	@python3 -m hl7engine.mllp_server &
 	@SERVER_PID=$$!; \
 	echo "Server PID: $$SERVER_PID"; \
@@ -141,24 +147,30 @@ run-benchmark-sweep-against-server:
 	echo "Running benchmark..."; \
 	$(BENCH) --duration 10 --sweep; \
 	echo "Stopping server..."; \
-	pkill -f "hl7engine.mllp_server" || true; \
+	kill $$SERVER_PID || true; \
 	echo "Done."
+	}
 
 # ---------------------------------------------------------
 # Run any benchmark against a temporary server instance
+# Do NOT kill server instance with 
+#    pkill -f "hl7engine.mllp_server" || true;
+# To not kill Prometheus server instance
 # ---------------------------------------------------------
 run-benchmark:
 	@echo "Starting HL7 MLLP server in background..."
-	@python3 -m hl7engine.mllp_server &
-	@SERVER_PID=$$!; \
+	@{ \
+	python3 -m hl7engine.mllp_server & \
+	SERVER_PID=$$!; \
 	echo "Server PID: $$SERVER_PID"; \
 	echo "Waiting for server to start..."; \
 	sleep 1; \
 	echo "Running benchmark: $(BENCHMARK)"; \
 	$(BENCH) --duration $(DURATION) $(BENCHMARK) $(EXTRA); \
 	echo "Stopping server..."; \
-	pkill -f "hl7engine.mllp_server" || true; \
-	echo "Done."
+	kill $$SERVER_PID || true; \
+	echo "Done."; \
+	}
 
 # ---------------------------------------------------------
 # HELP

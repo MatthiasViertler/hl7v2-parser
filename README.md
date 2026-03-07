@@ -1,12 +1,25 @@
 # HL7v2 Parser & Benchmarking Suite
 
-A high‑performance HL7v2 message parser written in Python, accompanied by a comprehensive benchmarking toolkit for evaluating throughput, latency, and concurrency behavior of HL7 MLLP servers.
+A high‑performance HL7v2 MLLP server with routing, validation, benchmarking, and full Prometheus monitoring support.  
+Designed for healthcare integration labs, message simulators, and performance testing environments.
+
+Accompanied by a comprehensive benchmarking toolkit for evaluating throughput, latency, and concurrency behavior of HL7 MLLP servers.
 
 This project is designed for experimentation, performance tuning, and deep analysis of HL7 message processing pipelines.
 
 ---
 
 ## Features
+
+- **HL7v2 MLLP Server** (port 2575)
+- **Config‑driven routing** (`routes.yaml`)
+- **Schema‑based validation** (`validation.yaml`)
+- **Worker pool + message queue**
+- **Prometheus metrics endpoint** (port 8010)
+- **Benchmarking suite** (throughput, latency, concurrency sweep)
+- **UI viewer** for routed HL7 messages (port 8000)
+- **VS Code debug configurations**
+- **Zero‑downtime monitoring with Grafana**
 
 ### **HL7v2 Parser**
 - Lightweight, fast HL7v2 message parsing
@@ -57,6 +70,11 @@ hl7v2-parser/
 │   │   └── ...
 │   └── ...
 │
+├── monitoring/
+│   ├── prometheus.yml             # Prometheus config
+│   └── grafana/
+│       └── dashboard.json         # Grafana dashboard
+|
 ├── config/                        # YAML configuration files
 │   ├── routes.yaml
 │   ├── validation.yaml
@@ -132,6 +150,132 @@ These documents describe the internal design, message flow, and how to interpret
 
 ---
 
+## Installation & Requirements
+
+- Python 3.10+
+- matplotlib (for visualization in benchmark)
+- Prometheus (for scraping benchmark/test results)
+- Grafana (for dashboards)
+- A running HL7 MLLP server (default: `127.0.0.1:2575`)
+
+Install dependencies:
+
+```bash
+pip install -e .
+```
+
+Optional extras:
+
+```bash
+pip install -e .[monitoring]
+pip install -e .[benchmark]
+pip install -e .[dev]
+```
+
+---
+
+## Running the MLLP server
+
+Run without Prometheus
+
+```bash
+python -m hl7engine.mllp_server
+```
+
+Run with Prometheus
+
+```bash
+python -m hl7engine.mllp_server --prometheus
+```
+
+---
+
+## Ports
+
+```
+Component          |      Port      |    Description
+-----------------------------------------------------------
+MLLP Server        |      2575      |  HL7v2 MLLP Listener
+Prometheus Metrics |      8010      |  /metrics endpoint
+UI Viewer          |      8000      |  Static HTML viewer
+Prometheus UI      |      9090      |  Prometheus dashboard
+-----------------------------------------------------------
+
+```
+
+---
+
+## Monitoring with Prometheus
+
+1. Start Prometheus
+
+```bash
+./prometheus --config.file=./monitoring/prometheus.yml
+```
+
+2. Prometheus scrape config
+
+```Yaml
+scrape_configs:
+  - job_name: "hl7_mllp_server"
+    static_configs:
+      - targets: ["localhost:8010"]
+```
+
+3. Available Metrics
+
+```
+Metric                         |      Type        |         Description
+--------------------------------------------------------------------------------
+hl7_messages_received          |     Counter      |  Total HL7 messages received
+hl7_messages_processed         |     Counter      |  Messages fully processed
+hl7_acks_sent                  |     Counter      |  ACKs returned
+hl7_worker_tasks               |     Counter      |  Tasks executed by workers
+hl7_workers_max                |      Gauge       |  Max worker count
+hl7_workers_busy               |      Gauge       |  Busy workers
+hl7_queue_depth                |      Gauge       |  Queue size
+hl7_ack_latency_ms_p50/p95/p99 |      Gauge       |  ACK latency percentiles
+---------------------------------------------------------------------------------
+
+```
+
+4. Example PromQL Queries
+
+Messages per second:
+```
+rate(hl7_messages_received[1m])
+```
+
+ACK latency:
+```
+hl7_ack_latency_ms_p95
+```
+
+Worker utilitzation:
+```
+hl7_workers_busy / hl7_workers_max
+```
+
+---
+
+## Grafana Dashboard
+
+A ready‑to‑import dashboard is available in:
+
+```
+monitoring/grafana/dashboard.json
+```
+
+The dashboard includes:
+- Throughput (msg/sec)
+- ACK latency (p50/p95/p99)
+- Queue depth
+- Worker utilization
+- Error counters
+- Message volume over time
+
+---
+
 ## Running Benchmarks
 
 ### **Max Throughput**
@@ -152,15 +296,65 @@ python3 -m benchmarking.run_benchmark --visualize results/<file>.json
 
 ---
 
-## Requirements
+## UI Viewer
 
-- Python 3.10+
-- matplotlib (for visualization)
-- A running HL7 MLLP server (default: `127.0.0.1:2575`)
+```bash
+make run-ui
+```
 
-Install dependencies:
+Then open:
+```
+http://localhost:8000
+```
+This displays routed HL7 messages grouped by destination.
 
-pip install -r requirements.txt
+---
+
+## Developer Workflow
+
+### VS Code Debug Configurations
+The project includes .vscode/launch.json with:
+- Run MLLP Server (with Prometheus)
+- Run MLLP Server (no Prometheus)
+
+### Optional Keyboard Shortcut
+Add to keybindings.json:
+```Json
+{
+  "key": "ctrl+alt+m",
+  "command": "workbench.action.debug.start",
+  "args": { "config": "Run MLLP Server (with Prometheus)" }
+}
+```
+
+### Kill running servers
+
+```bash
+make kill-server
+```
+
+---
+
+## Troubleshooting
+
+### Prometheus target DOWN
+- Ensure server started with --prometheus
+- Ensure port 8010 is free
+- Check /metrics manually
+
+### Benchmark kills my server
+- Use VS Code launch config for manual server
+- Makefile kills only the temporary server
+
+### Port already in use
+
+```bash
+make kill-server
+```
+
+### Metrics not increasing
+- Run a benchmark
+- Ensure messages are being processed
 
 ---
 

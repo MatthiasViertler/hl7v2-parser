@@ -86,11 +86,11 @@ ASCII Overview
                 │        MLLP Client         │
                 │ (LIS, HIS, Lab Analyzer…)  │
                 └──────────────┬─────────────┘
-                               MLLP
+                               MLLP 
                                │
                                ▼
                 ┌────────────────────────────┐
-                │        MLLP Server         │
+                │        MLLP Server (2575)  │
                 │  (hl7engine/mllp_server)   │
                 └──────────────┬─────────────┘
                                │ raw HL7
@@ -106,6 +106,35 @@ ASCII Overview
         ▼               ▼               ▼                ▼
    Parser           Validator         Router          Database
 (parse_hl7)     (validation.yaml)   (routes.yaml)   (SQLite storage)
+
+
+With this structure after server-tuning:
+
+                ┌──────────────────────────┐
+                │        HL7 Client        │
+                └──────────────┬───────────┘
+                              │ MLLP (2575)
+                ┌──────────────▼───────────┐
+                │      MLLP Listener        │
+                └──────────────┬───────────┘
+                              │
+                              ▼
+                        Message Queue
+                              │
+                              ▼
+                        Worker Pool (N)
+                              │
+                              ▼
+                        Router → routed/<dest>/*.hl7
+                              │
+                              ▼
+                        Validator (schema + rules)
+                              │
+                              ▼
+                        ACK Generator
+                              │
+                              ▼
+                        Prometheus Metrics (8010)
 
 2. Component Architecture
 2.1 MLLP Server (hl7engine/mllp_server.py)

@@ -1,0 +1,39 @@
+groups:
+  - name: hl7_alerts
+    rules:
+
+      # -----------------------------------------------------
+      # ALERT 1: Queue Overflow
+      # -----------------------------------------------------
+      - alert: HL7QueueOverflow
+        expr: increase(hl7_queue_overflow[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HL7 MLLP server queue overflow"
+          description: "The HL7 message queue has overflowed at least once in the last 5 minutes."
+
+      # -----------------------------------------------------
+      # ALERT 2: Worker Saturation
+      # -----------------------------------------------------
+      - alert: HL7WorkerSaturation
+        expr: hl7_workers_busy / hl7_workers_max > 0.85
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HL7 worker pool saturation"
+          description: "More than 85% of HL7 workers are busy for over 2 minutes."
+
+      # -----------------------------------------------------
+      # ALERT 3: High ACK Latency
+      # -----------------------------------------------------
+      - alert: HL7AckLatencyHigh
+        expr: hl7_ack_latency_ms_p95 > 50
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High ACK latency"
+          description: "The p95 ACK latency has exceeded 50ms for more than 1 minute."

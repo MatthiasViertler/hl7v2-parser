@@ -26,11 +26,12 @@ PROM_LOG := prometheus.log
 PROM_METRICS_URL := http://localhost:8010/metrics
 
 # ---------------------------------------------------------
-# GRAFANA (DEVELOPMENT SETTINGS)
+# GRAFANA (DEPLOYMENT SETTINGS)
 # ---------------------------------------------------------
 # APT INSTALL bin dir:
-GRAFANA_DEV_BIN := $(HOME)/grafana/bin/grafana
-GRAFANA_DEV_HOME := $(HOME)/grafana
+GRAFANA_BIN := /usr/sbin/grafana-server
+#GRAFANA_BIN := /usr/share/grafana/bin/grafana-server
+GRAFANA_HOME := /usr/share/grafana
 GRAFANA_LOG := grafana.log
 
 
@@ -304,44 +305,28 @@ restart-prometheus:
 # Start Grafana Server in foreground.
 # Grafana usually needs sudo because it binds to system directories.
 grafana:
-#	make grafana-disable-systemd
 	@echo "Starting Grafana..."
-	@sudo $(GRAFANA_DEV_BIN) --homepath=$(GRAFANA_DEV_HOME) > $(GRAFANA_LOG) 2>&1 &
+	@sudo $(GRAFANA_BIN) --homepath=$(GRAFANA_HOME) > $(GRAFANA_LOG) 2>&1 &
 	@echo $$! > grafana.pid
 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
 
 # Start Grafana Server in background.
 # Grafana usually needs sudo because it binds to system directories.
 grafana-bg:
-#	make grafana-disable-systemd
 	@echo "Starting Grafana in background..."
-	@nohup $(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) > $(GRAFANA_LOG) 2>&1 &
-	@echo $$! > grafana.pid
-# 	@sleep 1
-# 	@pgrep -f "$(GRAFANA_DEV_BIN)" > grafana.pid
-	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
-
-grafana-disable-systemd:
-	@echo "Disabling Grafana systemd services..."
-	@sudo systemctl disable grafana-server
+	@sudo -b $(GRAFANA_BIN) --homepath=$(GRAFANA_HOME) > $(GRAFANA_LOG) 2>&1
 	@sleep 1
-	@sudo systemctl stop grafana-server
-	@echo "Grafana systemd services disabled."
+	@pgrep -f "$(GRAFANA_BIN)" > grafana.pid
+	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
 
 
 grafana-status:
 	@echo "\n=== Grafana Status ==="
-	@if pgrep -f "$(GRAFANA_DEV_BIN)" > /dev/null; then \
-		pgrep -fl "$(GRAFANA_DEV_BIN)"; \
+	@if pgrep -f "grafana-server|grafana" > /dev/null; then \
+		pgrep -fl "grafana-server|grafana"; \
 	else \
 		echo "Grafana is NOT running."; \
 	fi
-# 	@echo "\n=== Grafana Status ==="
-# 	@if pgrep -f "grafana-server|grafana" > /dev/null; then \
-# 		pgrep -fl "grafana-server|grafana"; \
-# 	else \
-# 		echo "Grafana is NOT running."; \
-# 	fi
 
 # 	@echo "\n=== Grafana Status ==="
 # 	@if pgrep -x "$(notdir $(GRAFANA_BIN))" > /dev/null; then \
@@ -352,23 +337,15 @@ grafana-status:
 
 
 kill-grafana:
-	@echo "Stopping Grafana..."
 	@if [ -f grafana.pid ]; then \
-		kill $$(cat grafana.pid) 2>/dev/null || true; \
-		rm -f grafana.pid; \
+		echo "Stopping Grafana (PID: $$(cat grafana.pid))..."; \
+		sudo kill $$(cat grafana.pid) || true; \
+		rm grafana.pid; \
 	else \
-		pkill -f "$(HOME)/grafana/bin/grafana" 2>/dev/null || true; \
+		echo "No grafana.pid found. Killing by process name..."; \
+		sudo pkill -f "$(GRAFANA_BIN)" || true; \
 	fi
-	@echo "Grafana stopped (if it was running)."
-# 	@if [ -f grafana.pid ]; then \
-# 		echo "Stopping Grafana (PID: $$(cat grafana.pid))..."; \
-# 		sudo kill $$(cat grafana.pid) || true; \
-# 		rm grafana.pid; \
-# 	else \
-# 		echo "No grafana.pid found. Killing by process name..."; \
-# 		sudo pkill -f "$(GRAFANA_BIN)" || true; \
-# 	fi
-# 	@echo "Done."
+	@echo "Done."
 
 restart-grafana:
 	@echo "Restarting Grafana..."

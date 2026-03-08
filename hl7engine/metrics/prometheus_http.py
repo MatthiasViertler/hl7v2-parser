@@ -2,9 +2,9 @@
 import threading
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from hl7engine.json_logger import logger
+from hl7engine.utils.json_logger import logger
 
-from hl7engine.prometheus_exporter import metrics_to_prometheus
+from hl7engine.metrics.prometheus_exporter import metrics_to_prometheus
 
 class MetricsHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -43,3 +43,17 @@ def start_metrics_http_server(host="0.0.0.0", port=8010):
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
     return server
+
+# def start_metrics_http_server(port=8010):
+#     app = FastAPI()
+
+#     @app.get("/metrics")
+#     def metrics_endpoint():
+#         return PlainTextResponse(generate_prometheus_metrics())
+
+#     threading.Thread(
+#         target=lambda: uvicorn.run(app, host="0.0.0.0", port=port),
+#         daemon=True,
+#     ).start()
+
+#     logger.info({"event": "prometheus_http_server_start", "port": port})

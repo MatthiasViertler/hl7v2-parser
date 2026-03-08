@@ -18,6 +18,14 @@ REST_PORT = 8000
 MLLP_HOST = "localhost"
 MLLP_PORT = 2575
 
+# Prometheus server
+PROM_HOST = "localhost"
+PROM_PORT = 9090
+
+# Prometheus HTTP metrics viewing server
+PROM_HTTP_HOST = "localhost"
+PROM_HTTP_PORT = 8010
+
 # Project root (hl7v2-parser/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ROUTED = PROJECT_ROOT / "routed"
@@ -94,7 +102,12 @@ def start_servers():
 
     # Start MLLP server
     mllp_proc = subprocess.Popen(
-        [sys.executable, "-m", "hl7engine.mllp_server"],
+        [
+            sys.executable, 
+            "-m", 
+            "hl7engine.mllp_server", 
+            "--prometheus",
+        ],
         cwd=PROJECT_ROOT,
         env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT)},
         stdout=None,

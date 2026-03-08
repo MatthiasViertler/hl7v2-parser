@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
-from hl7engine.db import (
+from hl7engine.persistence.db import (
     init_db,
     get_messages,
     get_message_by_id,

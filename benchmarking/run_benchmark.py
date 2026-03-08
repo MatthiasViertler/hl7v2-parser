@@ -1,5 +1,7 @@
 import argparse
+import shutil
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from pathlib import Path
@@ -66,6 +68,14 @@ def export_results_json(metrics, duration_sec, output_path=None):
 
     print(f"\nJSON results saved to: {output_path}")
 
+# Regularly clean-up /results folder to free up memory
+def cleanup_results(results_dir):
+    for f in results_dir.glob("run_*.json"):
+        try:
+            f.unlink()
+        except Exception:
+            pass
+
 def main():
     parser = argparse.ArgumentParser(description="HL7 MLLP Benchmark Runner")
     parser.add_argument("--host", default="127.0.0.1", help="MLLP server host")
@@ -103,6 +113,9 @@ def main():
         help="Path to a JSON results file to visualize"
     )
 
+    parser.add_argument("--clean-results", action="store_true",
+                    help="Delete old benchmark result files before running")
+
     args = parser.parse_args()
     
     if args.visualize:
@@ -116,6 +129,12 @@ def main():
             plot_percentiles(data["ack_latencies_ms"])
 
         return
+
+    # Clean-up via CLI arg or ENV variable
+    if args.clean_results or (os.getenv("BENCH_CLEAN_RESULTS") == 1):
+        if args.json_out is not None:
+            cleanup_results(args.json_out)
+
 
     message_pool = load_messages()
 

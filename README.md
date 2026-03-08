@@ -46,14 +46,29 @@ hl7v2-parser/
 │
 ├── hl7engine/                     # Main application package
 │   ├── __init__.py
-│   ├── api.py                     # REST API (if used)
-│   ├── db.py                      # SQLite or other persistence layer
+│   │
+│   ├── api/ 
+│   │    └──api.py                 # REST API (if used)
+│   │
+│   ├── persistence/ 
+│   │   └── db.py                  # SQLite or other persistence layer
+│   │
+│   ├── metrics/
+│   │   ├── metrics.py             # Counters, gauges, histograms
+│   │   ├── metrics_reporter.py    # Periodic metrics logging
+│   │   ├── prometheus_exporter.py # Prometheus metric formatting
+│   │   └── prometheus_http.py     # /metrics HTTP endpoint
+│   │
+│   ├── workers/ 
+│   │    └──slow_worker.py         # Routing, file writing, DB inserts
+│   │
+│   ├── utils/ 
+│   │    └──json_logger.py         # Structured JSON logging
+│   │
 │   ├── hl7_listener.py            # HL7 message ingestion
 │   ├── mllp_server.py             # MLLP TCP server implementation
-│   ├── parse_hl7.py               # HL7 parsing utilities
 │   ├── router.py                  # Message routing logic
 │   ├── validator.py               # HL7 profile validation
-│   ├── json_logger.py             # Structured JSON logging
 │   ├── profiles/                  # HL7 profile definitions
 │   │   ├── oru_r01.yaml
 │   │   └── ...
@@ -72,8 +87,9 @@ hl7v2-parser/
 │
 ├── monitoring/
 │   ├── prometheus.yml             # Prometheus config
-│   └── grafana/
-│       └── dashboard.json         # Grafana dashboard
+│   ├── alert_rules.yml
+│   ├── grafana_dashboard.json     # Grafana dashboard
+│   └── README.md
 |
 ├── config/                        # YAML configuration files
 │   ├── routes.yaml
@@ -331,6 +347,19 @@ Add to keybindings.json:
 
 ```bash
 make kill-server
+```
+
+### Clean-up old benchmark results
+
+To clean old benchmark results:
+
+```bash
+make clean-bench-results
+# or
+python run_benchmark.py --clean-results
+# or
+BENCH_CLEAN_RESULTS=1 python run_benchmark.py
+
 ```
 
 ---

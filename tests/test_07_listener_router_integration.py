@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 from hl7engine.hl7_listener import process_hl7_message
-from hl7engine.db import DB_PATH
+from hl7engine.persistence.db import DB_PATH
 
 
 BASE = Path(__file__).resolve().parent.parent

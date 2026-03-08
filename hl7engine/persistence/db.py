@@ -4,18 +4,19 @@ import sqlite3
 import datetime
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
 RUNTIME_DB = DATA_DIR / "hl7_messages.db"
 SEED_DB = DATA_DIR / "seed" / "hl7_messages_demo.db"
 
 # Always use the runtime DB inside data/
 DB_PATH = RUNTIME_DB
 
-# Copy seed DB if runtime DB does not exist
-if not RUNTIME_DB.exists():
-    shutil.copy(SEED_DB, RUNTIME_DB)
-
 def init_db():
+    # Copy seed DB if runtime DB does not exist
+    if not RUNTIME_DB.exists():
+        shutil.copy(SEED_DB, RUNTIME_DB)
+
     """Create the SQLite database and tables if they don't exist."""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()

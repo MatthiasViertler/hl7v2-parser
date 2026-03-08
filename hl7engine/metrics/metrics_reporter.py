@@ -2,8 +2,8 @@
 
 import threading
 import time
-from hl7engine.metrics import metrics
-from hl7engine.json_logger import logger
+from hl7engine.metrics.metrics import metrics
+from hl7engine.utils.json_logger import logger
 
 def start_metrics_reporter(interval=1.0):
     def loop():

@@ -8,19 +8,15 @@
 # 2026-Mar-01 (revised with HL7 v2.3 → v2.3.1 normalization)
 # 2026-Mar-07 (refactored for fast & slow track to handle early ACKs)
 
-import os
-import datetime
-
 from hl7apy.parser import parse_message
 from hl7apy.exceptions import HL7apyException
 
-from hl7engine.db import init_db, insert_message
-from hl7engine.json_logger import log_event
-from hl7engine.router import Router
+from hl7engine.persistence.db import init_db
 from hl7engine.validator import YAMLValidator
+from hl7engine.workers.slow_worker import slow_processing_phase
+from hl7engine.utils.ack_utils import build_ack_from_msg, build_ack_simple
 
 validator = YAMLValidator("validation.yaml")
-router = Router("routes.yaml")
 init_db()
 
 print(">>> USING hl7engine.hl7_listener FROM:", __file__)
@@ -59,34 +55,6 @@ def normalize_version(raw_hl7: str) -> str:
 
     segments[0] = "|".join(msh)
     return "\r".join(segments)
-
-
-# ------------------------------------------------------------
-# ACK BUILDERS
-# ------------------------------------------------------------
-
-def build_ack_from_msg(original_msg, code="AA", text="OK") -> str:
-    """Build ACK using fields from the original message."""
-    msh = original_msg.msh
-    control_id = msh.msh_10.value or "UNKNOWN"
-
-    ack = (
-        f"MSH|^~\\&|{msh.msh_5.value}|{msh.msh_6.value}|"
-        f"{msh.msh_3.value}|{msh.msh_4.value}|"
-        f"{msh.msh_7.value}||ACK^{msh.msh_9.msh_9_2.value}|{control_id}|P|{msh.msh_12.value}\r"
-        f"MSA|{code}|{control_id}|{text}\r"
-    )
-    return ack
-
-
-def build_ack_simple(control_id: str, code="AA", text="OK") -> str:
-    """Fallback ACK when we don't have a parsed message."""
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    ack = (
-        f"MSH|^~\\&|RECEIVER|HOSP|SENDER|HOSP|{now}||ACK^A01|ACK{control_id}|P|2.5.1\r"
-        f"MSA|{code}|{control_id}|{text}\r"
-    )
-    return ack
 
 
 # ------------------------------------------------------------
@@ -223,83 +191,6 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
         "error_text": error_text,
         "sender_ip": sender_ip,
     }
-
-
-# ------------------------------------------------------------
-# NEW: SLOW PHASE (routing, file writing, DB insert, logging)
-# ------------------------------------------------------------
-
-def slow_processing_phase(ctx: dict):
-    """
-    SLOW PHASE:
-    - routing
-    - file writing
-    - logging
-    - DB insert
-
-    This runs AFTER ACK is already sent.
-    """
-
-    raw_hl7_norm = ctx["raw_hl7_norm"]
-    msg = ctx["msg"]
-    msg_type = ctx["msg_type"]
-    trigger_event = ctx["trigger_event"]
-    control_id = ctx["control_id"]
-    patient_id = ctx["patient_id"]
-    sender_ip = ctx["sender_ip"]
-    ack_code = ctx["ack_code"]
-    error_text = ctx["error_text"]
-
-    folder = None
-    routed_path = None
-
-    # ROUTING
-    if msg is not None:
-        try:
-            folder, routed_path = router.route(msg_type, raw_hl7_norm)
-            ctx["folder"] = folder
-            ctx["routed_path"] = routed_path
-
-            os.makedirs(routed_path, exist_ok=True)
-            fname = f"{control_id or 'UNKNOWN'}.hl7"
-            full_path = os.path.join(routed_path, fname)
-
-            with open(full_path, "w", encoding="utf-8") as f:
-                f.write(raw_hl7_norm)
-                f.flush()
-                os.fsync(f.fileno())
-
-        except Exception as e:
-            print(f"[ROUTER] ERROR writing routed file: {e}")
-
-    # LOGGING
-    log_event({
-        "sender": sender_ip,
-        "raw_hl7": raw_hl7_norm,
-        "message_type": msg_type,
-        "trigger_event": trigger_event,
-        "control_id": control_id,
-        "patient_id": patient_id,
-        "routing_folder": folder,
-        "routing_path": routed_path,
-        "ack_sent": True,
-        "status": ack_code,
-    })
-
-    # DB INSERT
-    insert_message(
-        sender_ip=sender_ip,
-        raw_hl7=raw_hl7_norm,
-        message_type=msg_type,
-        trigger_event=trigger_event,
-        control_id=control_id,
-        patient_id=patient_id,
-        routing_folder=folder,
-        routing_path=routed_path,
-        ack=build_ack_simple(control_id, ack_code, error_text or ""),
-        status=ack_code,
-    )
-
 
 # ------------------------------------------------------------
 # BACKWARD COMPATIBILITY: original API

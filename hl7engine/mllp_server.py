@@ -20,16 +20,16 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue, Full
 
-from hl7engine.metrics import metrics
-from hl7engine.prometheus_http import start_metrics_http_server
-from hl7engine.metrics_reporter import start_metrics_reporter
+from hl7engine.metrics.metrics import metrics
+from hl7engine.metrics.prometheus_http import start_metrics_http_server
+from hl7engine.metrics.metrics_reporter import start_metrics_reporter
 
 from hl7engine.hl7_listener import (
     fast_ack_phase,
     slow_processing_phase,
     normalize_hl7,
 )
-from hl7engine.json_logger import logger
+from hl7engine.utils.json_logger import logger
 
 START_BLOCK = b"\x0b"
 END_BLOCK = b"\x1c\x0d"

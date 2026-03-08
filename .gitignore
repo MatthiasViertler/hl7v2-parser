@@ -10,6 +10,8 @@ received/
 
 # Logs
 logs/
+*.log
+*.pid
 
 # Runtime SQLite DB (seed DB is committed)
 data/hl7_messages.db
@@ -70,7 +72,13 @@ hl7engine/_version.py
 ##############################
 
 prometheus-data/
+prometheus.log
+prometheus.pid
 grafana-data/
+grafana.log
+grafana.pid
+grafana/
+grafana/**
 
 ##############################
 # UI / FRONTEND ARTIFACTS    #

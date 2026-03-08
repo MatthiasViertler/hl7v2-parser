@@ -1,6 +1,6 @@
 # hl7engine/prometheus_exporter.py
 
-from hl7engine.metrics import metrics
+from hl7engine.metrics.metrics import metrics
 
 def _quantiles(values, quantiles):
     if not values:

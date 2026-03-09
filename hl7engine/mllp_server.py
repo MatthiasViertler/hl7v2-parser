@@ -57,6 +57,7 @@ class MLLPServer:
                 
         metrics.set("workers_max", max_workers)
         metrics.set("workers_busy", 0)
+        metrics.set("active_connections", 0)
 
     # ------------------------------------------------------------
     # SERVER START
@@ -108,6 +109,7 @@ class MLLPServer:
         sender_ip = addr[0]
         buffer = b""
         try:
+            metrics.set("active_connections", metrics.gauges["active_connections"] + 1)
             while not self._shutdown.is_set():
                 chunk = conn.recv(4096)
                 if not chunk:
@@ -135,9 +137,11 @@ class MLLPServer:
 
                     self._enqueue_message(raw_hl7, conn, sender_ip)
         finally:
+            metrics.set("active_connections", metrics.gauges["active_connections"] - 1)
             try:
                 conn.close()
             except Exception:
+                metrics.inc("connection_errors")
                 pass
 
     # ------------------------------------------------------------
@@ -193,13 +197,24 @@ class MLLPServer:
     # PROCESS MESSAGE (FAST ACK + ASYNC SLOW PHASE)
     # ------------------------------------------------------------
     def _process_message(self, raw_hl7: str, conn: socket.socket, sender_ip: str):
-        logger.info({"event": "message_processing_start", "sender_ip": sender_ip})
+        try:
+            e2e_start = time.time()
+            logger.info({"event": "message_processing_start", "sender_ip": sender_ip})
 
-        start = time.time()
-        # FAST PHASE → parse + validate + build ACK
-        ack, ctx = fast_ack_phase(raw_hl7, sender_ip)
-        ack_latency = (time.time() - start) * 1000
-        metrics.observe("ack_latency_ms", ack_latency)
+            start = time.time()
+            # FAST PHASE → parse + validate + build ACK
+            ack, ctx = fast_ack_phase(raw_hl7, sender_ip)
+            ack_latency = (time.time() - start) * 1000
+            metrics.observe("ack_latency_ms", ack_latency)
+            facility = ctx.get("facility", "UNKNOWN")
+            # Prometheus metric names cannot contain dots
+            sender_ip_prometheus = sender_ip.replace(".", "_")
+            facility_prometheus = facility.replace(".", "_")
+            metrics.observe(f"sender_ack_latency_ms_{sender_ip_prometheus}", ack_latency)
+            metrics.observe(f"facility_ack_latency_ms_{facility_prometheus}", ack_latency)
+        except Exception as e:
+            logger.error({"event": "worker_exception_1", "error": str(e)})
+            raise
 
         # Send ACK immediately
         framed_ack = START_BLOCK + ack.encode() + END_BLOCK
@@ -217,12 +232,24 @@ class MLLPServer:
         metrics.inc("acks_sent")
         logger.info({"event": "ack_sent", "sender_ip": sender_ip})
 
-        # SLOW PHASE → routing, file writing, DB insert, logging
-        self.slow_executor.submit(slow_processing_phase, ctx)
+        try:
+            # SLOW PHASE → routing, file writing, DB insert, logging
+            self.slow_executor.submit(slow_processing_phase, ctx)
 
-        metrics.inc("messages_processed")
-        logger.info({"event": "message_processing_done", "sender_ip": sender_ip})
-
+            metrics.inc("messages_processed")
+            logger.info({"metrics_id": id(metrics)})
+            logger.info({"event": "message_processing_done", "sender_ip": sender_ip})
+            e2e_latency = (time.time() - e2e_start) * 1000
+            metrics.observe("end_to_end_latency_ms", e2e_latency)
+            facility = ctx.get("facility", "UNKNOWN")
+            # Prometheus metric names cannot contain dots
+            sender_ip_prometheus = sender_ip.replace(".", "_")
+            facility_prometheus = facility.replace(".", "_")
+            metrics.observe(f"sender_e2e_latency_ms_{sender_ip_prometheus}", e2e_latency)
+            metrics.observe(f"facility_e2e_latency_ms_{facility_prometheus}", e2e_latency)
+        except Exception as e:
+            logger.error({"event": "worker_exception_2", "error": str(e)})
+            raise
 
 # ------------------------------------------------------------
 # RUN SERVER

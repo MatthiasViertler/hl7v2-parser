@@ -1,0 +1,121 @@
+{
+  "title": "HL7 Engine — Sender Risk Dashboard",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+
+    {
+      "type": "row",
+      "title": "Sender Risk Overview",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Sender Risk Score (Top 10)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "topk(10, sender_risk_score)",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Risk Components per Sender",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Parse Failures per Sender",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"sender_parse_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Validation Failures per Sender",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"sender_validation_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "DB Failures per Sender",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"sender_db_failure_.*\"}[10m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Latency Violations",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "ACK Latency p95 per Sender",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "expr": "topk(10, {__name__=~\"sender_ack_latency_ms_.*_p95\"})",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Queue Overflow (Global)",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 15 },
+      "targets": [
+        {
+          "expr": "increase(hl7_queue_overflow[5m])",
+          "legendFormat": "queue_overflow"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Risk Heatmap",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }
+    },
+
+    {
+      "type": "heatmap",
+      "title": "Sender Risk Heatmap",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "targets": [
+        {
+          "expr": "sender_risk_score",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    }
+
+  ]
+}

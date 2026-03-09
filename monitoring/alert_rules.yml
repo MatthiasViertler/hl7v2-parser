@@ -37,3 +37,256 @@ groups:
         annotations:
           summary: "High ACK latency"
           description: "The p95 ACK latency has exceeded 50ms for more than 1 minute."
+
+      # HL7 Engine Down
+      - alert: HL7EngineDown
+        expr: up{job="hl7engine"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "HL7 Engine is down"
+          description: "The HL7 MLLP server is not responding."
+
+      # HL7 Parsing Errors
+      - alert: HL7ParsingErrors
+        expr: increase(hl7_parsing_failure[1m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HL7 parsing errors detected"
+          description: "One or more HL7 messages failed to parse in the last minute."
+
+      # HL7 Throughput Drop
+      - alert: HL7ThroughputLow
+        expr: rate(hl7_messages_received[1m]) < 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HL7 throughput is low"
+          description: "HL7 message rate dropped below 1 msg/min."
+
+  - name: api-alerts
+    rules:
+
+    # REST API Down
+    - alert: RESTAPIDown
+      expr: up{job="hl7api"} == 0
+      for: 30s
+      labels:
+        severity: critical
+      annotations:
+        summary: "REST API is down"
+        description: "The HL7 REST API is not responding."
+
+  - name: infra-alerts
+    rules:
+
+    # Prometheus Scrape Failures
+    - alert: PrometheusScrapeFailures
+      expr: increase(prometheus_target_scrapes_exceeded_sample_limit_total[5m]) > 0
+      labels:
+        severity: warning
+      annotations:
+        summary: "Prometheus scrape failures"
+        description: "Prometheus is failing to scrape one or more targets."
+
+    # Grafana Down
+    - alert: GrafanaDown
+      expr: up{job="grafana"} == 0
+      for: 30s
+      labels:
+        severity: critical
+      annotations:
+        summary: "Grafana is down"
+        description: "Grafana is not responding on port 3000."
+
+  - name: sender-sla-alerts
+    rules:
+
+      # -----------------------------------------------------
+      # ACK LATENCY SLO VIOLATION (Sender)
+      # SLO: p95 < 50ms
+      # -----------------------------------------------------
+      - alert: SenderAckLatencyHigh
+        expr: |
+          {__name__=~"sender_ack_latency_ms_.*_p95"} > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender ACK latency SLO violation"
+          description: |
+            Sender {{ $labels.__name__ }} has p95 ACK latency above 50ms.
+
+      # -----------------------------------------------------
+      # ACK LATENCY SLO VIOLATION (Facility)
+      # -----------------------------------------------------
+      - alert: FacilityAckLatencyHigh
+        expr: |
+          {__name__=~"facility_ack_latency_ms_.*_p95"} > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Facility ACK latency SLO violation"
+          description: |
+            Facility {{ $labels.__name__ }} has p95 ACK latency above 50ms.
+
+      # -----------------------------------------------------
+      # END-TO-END LATENCY SLO VIOLATION (Facility)
+      # SLO: p95 < 500ms
+      # -----------------------------------------------------
+      - alert: FacilityEndToEndLatencyHigh
+        expr: |
+          {__name__=~"facility_e2e_latency_ms_.*_p95"} > 500
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Facility end-to-end latency SLO violation"
+          description: |
+            Facility {{ $labels.__name__ }} has p95 end-to-end latency above 500ms.
+
+      # -----------------------------------------------------
+      # PARSE FAILURE RATE SLO VIOLATION (Sender)
+      # SLO: <1% failures
+      # -----------------------------------------------------
+      - alert: SenderParseFailureRateHigh
+        expr: |
+          increase({__name__=~"sender_parse_failure_.*"}[5m])
+          /
+          (increase({__name__=~"sender_messages_total_.*"}[5m]) + 1)
+          > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender parse failure SLO violation"
+          description: |
+            Sender {{ $labels.__name__ }} has parse failure rate above 1%.
+
+      # -----------------------------------------------------
+      # VALIDATION FAILURE RATE SLO VIOLATION (Sender)
+      # SLO: <2% failures
+      # -----------------------------------------------------
+      - alert: SenderValidationFailureRateHigh
+        expr: |
+          increase({__name__=~"sender_validation_failure_.*"}[5m])
+          /
+          (increase({__name__=~"sender_messages_total_.*"}[5m]) + 1)
+          > 0.02
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender validation failure SLO violation"
+          description: |
+            Sender {{ $labels.__name__ }} has validation failure rate above 2%.
+
+      # -----------------------------------------------------
+      # DB RELIABILITY SLO VIOLATION (Sender)
+      # SLO: 99.99% success
+      # -----------------------------------------------------
+      - alert: SenderDBFailureRateHigh
+        expr: |
+          increase({__name__=~"sender_db_failure_.*"}[10m])
+          /
+          (increase({__name__=~"sender_messages_total_.*"}[10m]) + 1)
+          > 0.0001
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sender DB reliability SLO violation"
+          description: |
+            Sender {{ $labels.__name__ }} is exceeding DB insert failure SLO.
+
+      # -----------------------------------------------------
+      # MESSAGE LOSS SLO VIOLATION (Global)
+      # SLO: 0 lost messages
+      # -----------------------------------------------------
+      - alert: HL7MessageLossDetected
+        expr: increase(hl7_queue_overflow[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Message loss detected"
+          description: |
+            One or more HL7 messages were dropped due to queue overflow.
+
+      # -----------------------------------------------------
+      # SENDER RISK SCORE (Composite)
+      # High risk = parse failures + validation failures + DB failures
+      # -----------------------------------------------------
+      - alert: SenderRiskScoreHigh
+        expr: |
+          (
+            increase({__name__=~"sender_parse_failure_.*"}[5m])
+            +
+            increase({__name__=~"sender_validation_failure_.*"}[5m])
+            +
+            increase({__name__=~"sender_db_failure_.*"}[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender risk score high"
+          description: |
+            Sender {{ $labels.__name__ }} is generating excessive errors and may be unstable.
+
+  - name: sender-risk-alerts
+    rules:
+
+      # High risk sender (warning)
+      - alert: SenderRiskHigh
+        expr: sender_risk_score > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender risk score high"
+          description: |
+            Sender {{ $labels.__name__ }} has a high composite risk score (>10) over the last 5 minutes.
+
+      # Critical risk sender
+      - alert: SenderRiskCritical
+        expr: sender_risk_score > 20
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sender risk score critical"
+          description: |
+            Sender {{ $labels.__name__ }} has a critical composite risk score (>20) over the last 2 minutes.
+
+      # Rising risk (early warning)
+      - alert: SenderRiskRisingFast
+        expr: rate(sender_risk_score[10m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender risk score rising quickly"
+          description: |
+            Sender {{ $labels.__name__ }} shows a rapidly increasing risk score, indicating emerging instability.
+
+      # Detects “sender is slowing down compared to its own baseline”
+      - alert: SenderLatencyAnomaly
+        expr: |
+          (
+            {__name__=~"sender_ack_latency_ms_.*_p95"}
+          /
+            (avg_over_time({__name__=~"sender_ack_latency_ms_.*_p95"}[24h]) + 0.001)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sender latency anomaly detected"
+          description: |
+            Sender {{ $labels.__name__ }} has p95 ACK latency more than 2x its 24h baseline.

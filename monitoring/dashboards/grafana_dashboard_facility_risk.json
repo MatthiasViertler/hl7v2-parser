@@ -1,0 +1,102 @@
+{
+  "title": "HL7 Engine — Facility Risk Dashboard",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+
+    {
+      "type": "row",
+      "title": "Facility Risk Overview",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Facility Risk Score (Top 10)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "topk(10, facility_risk_score)",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Facility Risk Components",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Parse Failures per Facility",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"facility_parse_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Validation Failures per Facility",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"facility_validation_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "DB Failures per Facility",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"facility_db_failure_.*\"}[10m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Facility Latency & Loss",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "ACK Latency p95 per Facility",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 15 },
+      "targets": [
+        {
+          "expr": "topk(10, {__name__=~\"facility_ack_latency_ms_.*_p95\"})",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "End-to-End Latency p95 per Facility",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 15 },
+      "targets": [
+        {
+          "expr": "topk(10, {__name__=~\"facility_e2e_latency_ms_.*_p95\"})",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    }
+
+  ]
+}

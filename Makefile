@@ -20,7 +20,10 @@ HL7_ENGINE_LOG=hl7engine.log
 # ---------------------------------------------------------
 # PROMETHEUS
 # ---------------------------------------------------------
+PROM_DIR := /opt/prometheus
 PROMETHEUS_BIN := /opt/prometheus/prometheus
+PROM_RULES_SRC := $(shell pwd)/monitoring
+PROM_RULES := recording_rules.yml alert_rules.yml prometheus.yml
 PROM_CONFIG := $(shell pwd)/monitoring/prometheus.yml
 PROM_LOG := prometheus.log
 PROM_METRICS_URL := http://localhost:8010/metrics
@@ -31,8 +34,11 @@ PROM_METRICS_URL := http://localhost:8010/metrics
 # APT INSTALL bin dir:
 GRAFANA_DEV_BIN := $(HOME)/grafana/bin/grafana
 GRAFANA_DEV_HOME := $(HOME)/grafana
+GRAFANA_DEV_CONF := $(HOME)/grafana/conf/defaults.ini
 GRAFANA_LOG := grafana.log
-
+GRAFANA_DASH_SRC := $(shell pwd)/monitoring/dashboards
+GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/monitoring/dashboards/hl7.yaml
+GRAFANA_DASH_DST := $(HOME)/grafana/conf/provisioning/dashboards
 
 # ---------------------------------------------------------
 # INSTALL packages in editable mode for your Python env
@@ -55,11 +61,15 @@ run-server-prom-bg:
 	@echo "Starting HL7 engine with Prometheus in background..."
 	@nohup python3 -m hl7engine.mllp_server --prometheus > $(HL7_ENGINE_LOG) 2>&1 &
 	@echo $$! > hl7engine.pid
-	@echo "HL7 engine started (PID: $$(cat hl7engine.pid)). Logs: hl7engine.log"
+	@echo "HL7 engine started (PID: $$(cat hl7engine.pid)). Logs: $(HL7_ENGINE_LOG)"
 
 restart-server:
-	make kill-server
+	make kill-own-server
 	make run-server
+
+restart-server-prom-bg:
+	make kill-own-server
+	make run-server-prom-bg
 
 server-status:
 	@echo "Checking for running HL7 MLLP server..."
@@ -83,8 +93,13 @@ server-status-all:
 # ---------------------------------------------------------
 kill-own-server:
 	@echo "Killing HL7 MLLP server..."
-	@ps aux | grep "hl7engine.mllp_server" | grep -v grep | awk '{print $$2}' | xargs -r kill
+	@ps aux | grep "python3 -m hl7engine.mllp_server" | grep -v grep | awk '{print $$2}' | xargs -r kill
 	@echo "Done."
+
+# kill-own-server:
+# 	@echo "Killing HL7 MLLP server..."
+# 	@ps -eo pid,cmd | grep "[p]ython3 -m hl7engine.mllp_server" | awk '{print $$1}' | xargs -r kill
+# 	@echo "Done."
 
 # ---------------------------------------------------------
 # Kill any running HL7 MLLP server (based on binary)
@@ -108,11 +123,11 @@ kill-prometheus-all:
 kill-prometheus:
 	@if [ -f prometheus.pid ]; then \
 		echo "Stopping Prometheus (PID: $$(cat prometheus.pid))..."; \
-		kill $$(cat prometheus.pid) || true; \
-		rm prometheus.pid; \
+		kill $$(cat prometheus.pid) 2>/dev/null || true; \
+		rm -f prometheus.pid; \
 	else \
 		echo "No prometheus.pid found. Killing by process name..."; \
-		pkill -f "/opt/prometheus/prometheus" || true; \
+		pkill -x "prometheus" 2>/dev/null || true; \
 	fi
 	@echo "Done."
 
@@ -232,17 +247,18 @@ run-benchmark-sweep-against-server:
 # To not kill Prometheus server instance
 # ---------------------------------------------------------
 run-benchmark:
-	@echo "Starting HL7 MLLP server in background..."
+#	@echo "Starting HL7 MLLP server in background..."
+#	@{ \
+#	python3 -m hl7engine.mllp_server & \
+#	SERVER_PID=$$!; \
+#	echo "Server PID: $$SERVER_PID"; \
+#	echo "Waiting for server to start..."; \
+#	sleep 1; \
+#	echo "Stopping server..."; \
+#	kill $$SERVER_PID || true;
 	@{ \
-	python3 -m hl7engine.mllp_server & \
-	SERVER_PID=$$!; \
-	echo "Server PID: $$SERVER_PID"; \
-	echo "Waiting for server to start..."; \
-	sleep 1; \
 	echo "Running benchmark: $(BENCHMARK)"; \
 	$(BENCH) --duration $(DURATION) $(BENCHMARK) $(EXTRA); \
-	echo "Stopping server..."; \
-	kill $$SERVER_PID || true; \
 	echo "Done."; \
 	}
 
@@ -299,6 +315,51 @@ restart-prometheus:
 	@echo "Prometheus restarted."
 
 # -----------------------------------------------------------
+# PROMETHEUS RULE SYNC / VALIDATION / RELOAD
+# -----------------------------------------------------------
+
+# Copy rule files into /opt/prometheus (requires sudo)
+prometheus-sync-rules:
+	@echo "Copying Prometheus rule/config files into $(PROM_DIR)..."
+	@for f in $(PROM_RULES); do \
+		echo "  - Copying $$f"; \
+		sudo cp $(PROM_RULES_SRC)/$$f $(PROM_DIR)/$$f; \
+	done
+	@echo "Done."
+
+# Validate Prometheus config + rules
+prometheus-validate:
+	@echo "Validating Prometheus configuration..."
+	@cd $(PROM_DIR) && ./promtool check config prometheus.yml
+	@echo "Validating rule files..."
+	@cd $(PROM_DIR) && ./promtool check rules recording_rules.yml
+	@cd $(PROM_DIR) && ./promtool check rules alert_rules.yml
+	@echo "Validation OK."
+
+# Reload Prometheus via SIGHUP
+prometheus-reload:
+	@echo "Reloading Prometheus configuration..."
+	@if pgrep -x "prometheus" > /dev/null; then \
+		pkill -HUP -x "prometheus"; \
+		echo "Prometheus reloaded."; \
+	else \
+		echo "Prometheus is not running. Start it first."; \
+	fi
+
+# Full workflow: sync → validate → reload
+prometheus-full-reload: prometheus-sync-rules prometheus-validate prometheus-reload
+	@echo "Prometheus rules synced, validated, and reloaded."
+
+# First-time install of rule files (creates missing files)
+prometheus-install-rules:
+	@echo "Installing Prometheus rule/config files into $(PROM_DIR)..."
+	@sudo cp $(PROM_RULES_SRC)/prometheus.yml $(PROM_DIR)/prometheus.yml
+	@sudo cp $(PROM_RULES_SRC)/recording_rules.yml $(PROM_DIR)/recording_rules.yml
+	@sudo cp $(PROM_RULES_SRC)/alert_rules.yml $(PROM_DIR)/alert_rules.yml
+	@echo "Installation complete."
+
+
+# -----------------------------------------------------------
 #   GRAFANA TARGETS
 # -----------------------------------------------------------
 # Start Grafana Server in foreground.
@@ -306,7 +367,7 @@ restart-prometheus:
 grafana:
 #	make grafana-disable-systemd
 	@echo "Starting Grafana..."
-	@sudo $(GRAFANA_DEV_BIN) --homepath=$(GRAFANA_DEV_HOME) > $(GRAFANA_LOG) 2>&1 &
+	@$(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
 	@echo $$! > grafana.pid
 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
 
@@ -315,7 +376,7 @@ grafana:
 grafana-bg:
 #	make grafana-disable-systemd
 	@echo "Starting Grafana in background..."
-	@nohup $(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) > $(GRAFANA_LOG) 2>&1 &
+	@nohup $(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
 	@echo $$! > grafana.pid
 # 	@sleep 1
 # 	@pgrep -f "$(GRAFANA_DEV_BIN)" > grafana.pid
@@ -329,13 +390,13 @@ grafana-disable-systemd:
 	@echo "Grafana systemd services disabled."
 
 
-grafana-status:
-	@echo "\n=== Grafana Status ==="
-	@if pgrep -f "$(GRAFANA_DEV_BIN)" > /dev/null; then \
-		pgrep -fl "$(GRAFANA_DEV_BIN)"; \
-	else \
-		echo "Grafana is NOT running."; \
-	fi
+# grafana-status:
+# 	@echo "\n=== Grafana Status ==="
+# 	@if pgrep -f "$(GRAFANA_DEV_BIN)" > /dev/null; then \
+# 		pgrep -fl "$(GRAFANA_DEV_BIN)"; \
+# 	else \
+# 		echo "Grafana is NOT running."; \
+# 	fi
 # 	@echo "\n=== Grafana Status ==="
 # 	@if pgrep -f "grafana-server|grafana" > /dev/null; then \
 # 		pgrep -fl "grafana-server|grafana"; \
@@ -370,11 +431,56 @@ kill-grafana:
 # 	fi
 # 	@echo "Done."
 
+
+
+# Clear Grafana DB via SQLite
+# sqlite3 ~/grafana/data/grafana.db \
+#   "delete from dashboard where uid='hl7-mllp-server';"
+
+
 restart-grafana:
 	@echo "Restarting Grafana..."
 	make kill-grafana
 	make grafana-bg
 	@echo "Grafana restarted."
+
+
+
+grafana-status:
+	@echo "=== Grafana Status ==="
+	@ps -eo pid,cmd | grep "[g]rafana-server" || echo "Grafana not running."
+
+grafana-restart: grafana-kill grafana-bg
+	@echo "Grafana restarted."
+
+grafana-pid:
+	@ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'
+
+grafana-kill:
+	@echo "Stopping Grafana..."
+	@PIDS=`ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'`; \
+	if [ -n "$$PIDS" ]; then \
+		kill $$PIDS; \
+		echo "Grafana stopped."; \
+	else \
+		echo "Grafana was not running."; \
+	fi
+
+grafana-clear-dashboard:
+	@if [ -z "$(UID)" ]; then \
+		echo "Usage: make grafana-clear-dashboard UID=<dashboard_uid>"; \
+		exit 1; \
+	fi
+	@echo "Deleting dashboard with UID=$(UID)..."
+	@sqlite3 $(GRAFANA_DB) "delete from dashboard where uid='$(UID)';"
+	@echo "Dashboard removed. Restart Grafana to re-import."
+
+grafana-sync-dashboards:
+	@echo "Copying Grafana dashboards into $(GRAFANA_DASH_DST)..."
+	@mkdir -p $(GRAFANA_DASH_DST)
+	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_DASH_DST)/
+	@cp $(GRAFANA_PROVISIONING_FILE_SRC) $(GRAFANA_DASH_DST)/
+	@echo "Dashboards synced."
 
 # ---------------------------------------------------------
 # Start all servers (MLLP, Grafana + Prometheus) in background
@@ -411,6 +517,24 @@ monitoring-logs:
 	else \
 		echo "No Grafana log file found."; \
 	fi
+
+observability-clean:
+	@echo "Stopping all observability services..."
+	- make kill-server
+	- make kill-prometheus
+	- make kill-grafana
+
+	@echo "Removing PID and log files..."
+	- rm -f hl7engine.pid prometheus.pid grafana.pid
+	- rm -f hl7engine.log prometheus.log grafana.log
+
+	@echo "Cleaning routed files..."
+	- rm -rf routed/*
+
+	@echo "Cleaning SQLite DB..."
+	- rm -f data/hl7_messages.db
+
+	@echo "Observability environment cleaned."
 
 # ---------------------------------------------------------
 # HELP

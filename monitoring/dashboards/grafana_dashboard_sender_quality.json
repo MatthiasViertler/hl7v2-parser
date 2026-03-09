@@ -1,0 +1,157 @@
+{
+  "title": "HL7 Engine — Sender Quality Dashboard",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+
+    {
+      "type": "row",
+      "title": "Sender Volume",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Messages per Sender (Top 10)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "topk(10, rate({__name__=~\"sender_messages_total_.*\"}[1m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Messages per Facility (Top 10)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 7 },
+      "targets": [
+        {
+          "expr": "topk(10, rate({__name__=~\"facility_messages_total_.*\"}[1m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Sender Error Rates",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Parse Failures per Sender",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"sender_parse_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Validation Failures per Sender",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"sender_validation_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Parse Failures per Facility",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"facility_parse_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Validation Failures per Facility",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"facility_validation_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Sender Latency",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "ACK Latency p95 per Sender",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 27 },
+      "targets": [
+        {
+          "expr": "topk(10, {__name__=~\"sender_ack_latency_ms_.*_p95\"})",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "ACK Latency p95 per Facility",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 27 },
+      "targets": [
+        {
+          "expr": "topk(10, {__name__=~\"facility_ack_latency_ms_.*_p95\"})",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "End-to-End Latency p95 per Facility",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 33 },
+      "targets": [
+        {
+          "expr": "topk(10, {__name__=~\"facility_e2e_latency_ms_.*_p95\"})",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Sender Risk Score",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Sender Risk Score (Composite)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 40 },
+      "targets": [
+        {
+          "expr": "topk(10, increase({__name__=~\"sender_parse_failure_.*\"}[5m]) + increase({__name__=~\"sender_validation_failure_.*\"}[5m]) + increase({__name__=~\"sender_db_failure_.*\"}[5m]))",
+          "legendFormat": "{{__name__}}"
+        }
+      ]
+    }
+
+  ]
+}

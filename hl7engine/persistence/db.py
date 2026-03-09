@@ -1,8 +1,11 @@
 # db.py
+import os
 import shutil
 import sqlite3
 import datetime
 from pathlib import Path
+
+from hl7engine.metrics.metrics import metrics
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -58,28 +61,44 @@ def insert_message(
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
-    cur.execute("""
-        INSERT INTO messages (
-            timestamp, sender_ip, raw_hl7, message_type, trigger_event,
-            control_id, patient_id, routing_folder, routing_path, ack, status
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.datetime.now().isoformat(),
-        sender_ip,
-        raw_hl7,
-        message_type,
-        trigger_event,
-        control_id,
-        patient_id,
-        routing_folder,
-        routing_path,
-        ack,
-        status
-    ))
+    # Alternative DB insert block with automatic close, rollback on exception:
+    # try:
+    #     with sqlite3.connect(DB_PATH) as conn:
+    #         cur = conn.cursor()
+    #         cur.execute(...)
+    #         conn.commit()
+    # except Exception:
+    #     metrics.inc("db_insert_failure")
+    #     raise
 
-    conn.commit()
-    conn.close()
+    try:
+        cur.execute("""
+            INSERT INTO messages (
+                timestamp, sender_ip, raw_hl7, message_type, trigger_event,
+                control_id, patient_id, routing_folder, routing_path, ack, status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            datetime.datetime.now().isoformat(),
+            sender_ip,
+            raw_hl7,
+            message_type,
+            trigger_event,
+            control_id,
+            patient_id,
+            routing_folder,
+            routing_path,
+            ack,
+            status
+        ))
+
+        conn.commit()
+    except Exception:
+        metrics.inc("db_insert_failure")
+        raise
+    finally:
+        conn.close()
+        update_db_file_size()
 
 
 def get_messages(limit=100, offset=0):
@@ -152,3 +171,10 @@ def get_messages_by_patient_id(patient_id: str, limit=100, offset=0):
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+def update_db_file_size():
+    try:
+        size_mb = os.path.getsize(DB_PATH) / (1024 * 1024)
+        metrics.set("db_file_size_mb", size_mb)
+    except Exception:
+        pass

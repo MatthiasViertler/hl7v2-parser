@@ -16,6 +16,8 @@ from hl7engine.validator import YAMLValidator
 from hl7engine.workers.slow_worker import slow_processing_phase
 from hl7engine.utils.ack_utils import build_ack_from_msg, build_ack_simple
 
+from hl7engine.metrics.metrics import metrics
+
 validator = YAMLValidator("validation.yaml")
 init_db()
 
@@ -80,7 +82,11 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
 
     # Empty frame
     if not raw_hl7.strip():
+        metrics.inc("invalid_frame")
         ack = build_ack_simple("UNKNOWN", "AE", "Empty HL7 frame")
+        # Prometheus metric names cannot contain dots
+        sender_ip_prometheus = sender_ip.replace(".", "_")
+        metrics.inc(f"sender_messages_total_{sender_ip_prometheus}")
         return ack, {
             "raw_hl7_norm": "",
             "msg": None,
@@ -97,7 +103,11 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
 
     # Invalid HL7 (no MSH)
     if not raw_hl7.startswith("MSH"):
+        metrics.inc("invalid_frame")
         ack = build_ack_simple("UNKNOWN", "AE", "Invalid HL7 message")
+        # Prometheus metric names cannot contain dots
+        sender_ip_prometheus = sender_ip.replace(".", "_")
+        metrics.inc(f"sender_messages_total_{sender_ip_prometheus}")
         return ack, {
             "raw_hl7_norm": raw_hl7,
             "msg": None,
@@ -126,6 +136,7 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
     trigger_event = None
     control_id = "UNKNOWN"
     patient_id = None
+    facility = "UNKNOWN"
     ack_code = "AE"
     error_text = None
 
@@ -135,8 +146,19 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
 
         # Extract metadata
         try:
+            metrics.inc("parse_success")
             patient_id = msg.pid.pid_3.to_er7().split("^")[0]
+            facility = msg.msh.msh_4.value
+            # Prometheus metric names cannot contain dots
+            facility_prometheus = facility.replace(".", "_")
+            metrics.inc(f"facility_messages_total_{facility_prometheus}")
         except Exception:
+            # Prometheus metric names cannot contain dots
+            sender_ip_prometheus = sender_ip.replace(".", "_")
+            facility_prometheus = facility.replace(".", "_")
+            metrics.inc("parse_failure")
+            metrics.inc(f"sender_parse_failure_{sender_ip_prometheus}")
+            metrics.inc(f"facility_parse_failure_{facility_prometheus}")
             patient_id = None
 
         try:
@@ -147,16 +169,32 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
         try:
             msg_type = msg.msh.msh_9.msh_9_1.value or "UNKNOWN"
             trigger_event = msg.msh.msh_9.msh_9_2.value or None
+            
+            if msg_type:
+                metrics.inc(f"msg_type_{msg_type}")
+
+            if trigger_event:
+                metrics.inc(f"trigger_event_{trigger_event}")
         except Exception:
             msg_type = "UNKNOWN"
             trigger_event = None
 
         # VALIDATION
         ack_code, error_text = validator.validate(msg)
+        metrics.inc(f"validation_{ack_code}")
+        if ack_code != "AA":
+            # Prometheus metric names cannot contain dots
+            sender_ip_prometheus = sender_ip.replace(".", "_")
+            facility_prometheus = facility.replace(".", "_")
+            metrics.inc(f"sender_validation_failure_{sender_ip_prometheus}")
+            metrics.inc(f"facility_validation_failure_{facility_prometheus}")
 
     except Exception as e:
         # Parsing error → fallback ACK
         ack = build_ack_simple("UNKNOWN", "AE", f"Parsing error: {e}")
+        # Prometheus metric names cannot contain dots
+        sender_ip_prometheus = sender_ip.replace(".", "_")
+        metrics.inc(f"sender_validation_failure_{sender_ip_prometheus}")
         return ack, {
             "raw_hl7_norm": raw_hl7_norm,
             "msg": None,
@@ -169,6 +207,7 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
             "ack_code": "AE",
             "error_text": str(e),
             "sender_ip": sender_ip,
+            "facility_ip": facility,
         }
 
     # Build ACK (fast)
@@ -190,6 +229,7 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
         "ack_code": ack_code,
         "error_text": error_text,
         "sender_ip": sender_ip,
+        "facility_ip": facility,
     }
 
 # ------------------------------------------------------------

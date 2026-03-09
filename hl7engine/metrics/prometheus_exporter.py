@@ -14,6 +14,7 @@ def _quantiles(values, quantiles):
     return out
 
 def metrics_to_prometheus() -> str:
+    print("EXPORTER METRICS ID:", id(metrics))
     snap = metrics.snapshot()
     lines = []
 

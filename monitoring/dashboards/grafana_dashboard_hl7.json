@@ -1,0 +1,190 @@
+{
+  "title": "HL7 Engine Dashboard",
+  "schemaVersion": 36,
+  "version": 2,
+  "refresh": "5s",
+  "panels": [
+
+    {
+      "type": "row",
+      "title": "System Overview",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+
+    {
+      "type": "graph",
+      "title": "Messages per second",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "targets": [
+        { "expr": "rate(hl7_messages_received[1m])", "legendFormat": "messages_received" }
+      ]
+    },
+
+    {
+      "type": "graph",
+      "title": "ACK latency p95 / p99 (ms)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "targets": [
+        { "expr": "hl7_ack_latency_ms_p95", "legendFormat": "p95" },
+        { "expr": "hl7_ack_latency_ms_p99", "legendFormat": "p99" }
+      ]
+    },
+
+    {
+      "type": "graph",
+      "title": "Queue depth",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        { "expr": "hl7_queue_depth", "legendFormat": "queue_depth" }
+      ]
+    },
+
+    {
+      "type": "graph",
+      "title": "Worker saturation",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        { "expr": "hl7_workers_busy / hl7_workers_max", "legendFormat": "saturation" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "HL7 Message Quality",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+
+    {
+      "type": "stat",
+      "title": "Parse Success",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
+      "targets": [
+        { "expr": "increase(hl7_parse_success[5m])", "legendFormat": "success" }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "title": "Parse Failure",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
+      "targets": [
+        { "expr": "increase(hl7_parse_failure[5m])", "legendFormat": "failure" }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "title": "Invalid Frames",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "targets": [
+        { "expr": "increase(hl7_invalid_frame[5m])", "legendFormat": "invalid" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Validation Results",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 6 },
+      "targets": [
+        { "expr": "rate(hl7_validation_AA[1m])", "legendFormat": "AA" },
+        { "expr": "rate(hl7_validation_AE[1m])", "legendFormat": "AE" },
+        { "expr": "rate(hl7_validation_AR[1m])", "legendFormat": "AR" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Message Types",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
+      "targets": [
+        { "expr": "rate(hl7_msg_type_ADT[1m])", "legendFormat": "ADT" },
+        { "expr": "rate(hl7_msg_type_ORU[1m])", "legendFormat": "ORU" },
+        { "expr": "rate(hl7_msg_type_ORM[1m])", "legendFormat": "ORM" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Trigger Events",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        { "expr": "rate(hl7_trigger_event_A01[1m])", "legendFormat": "A01" },
+        { "expr": "rate(hl7_trigger_event_R01[1m])", "legendFormat": "R01" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Slow Path Health",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Slow Phase Latency (ms)",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 17 },
+      "targets": [
+        { "expr": "hl7_slow_phase_latency_ms_p95", "legendFormat": "p95" },
+        { "expr": "hl7_slow_phase_latency_ms_p99", "legendFormat": "p99" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Routing Latency (ms)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 17 },
+      "targets": [
+        { "expr": "hl7_routing_latency_ms_p95", "legendFormat": "p95" },
+        { "expr": "hl7_routing_latency_ms_p99", "legendFormat": "p99" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "DB Insert Latency (ms)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 17 },
+      "targets": [
+        { "expr": "hl7_db_insert_latency_ms_p95", "legendFormat": "p95" },
+        { "expr": "hl7_db_insert_latency_ms_p99", "legendFormat": "p99" }
+      ]
+    },
+
+    {
+      "type": "stat",
+      "title": "DB Insert Failures",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 21 },
+      "targets": [
+        { "expr": "increase(hl7_db_insert_failure[5m])", "legendFormat": "failures" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Infrastructure",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }
+    },
+
+    {
+      "type": "stat",
+      "title": "Queue Overflow Events",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 26 },
+      "targets": [
+        { "expr": "increase(hl7_queue_overflow[5m])", "legendFormat": "overflow" }
+      ]
+    },
+
+    {
+      "type": "timeseries",
+      "title": "Worker Tasks",
+      "gridPos": { "h": 4, "w": 18, "x": 6, "y": 26 },
+      "targets": [
+        { "expr": "rate(hl7_worker_tasks[1m])", "legendFormat": "tasks" }
+      ]
+    }
+
+  ]
+}

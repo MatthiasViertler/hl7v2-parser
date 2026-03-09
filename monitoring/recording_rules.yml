@@ -1,0 +1,16 @@
+groups:
+  - name: sender-risk-rules
+    rules:
+      - record: sender_risk_score
+        expr: |
+          (
+            increase({__name__=~"sender_parse_failure_.*"}[5m]) * 3
+          +
+            increase({__name__=~"sender_validation_failure_.*"}[5m]) * 2
+          +
+            increase({__name__=~"sender_db_failure_.*"}[5m]) * 5
+          +
+            ( {__name__=~"sender_ack_latency_ms_.*_p95"} > 50 ) * 2
+          +
+            increase(hl7_queue_overflow[5m]) * 10
+          )

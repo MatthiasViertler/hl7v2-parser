@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'HL7 Dashboards'
+    orgId: 1
+    folder: 'HL7 Monitoring'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /home/hovergames/grafana/conf/provisioning/dashboards

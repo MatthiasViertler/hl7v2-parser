@@ -1,3 +1,6 @@
+# Enable color coding: use Bash, not Dash (default)
+SHELL := /bin/bash
+
 .DEFAULT_GOAL := help
 
 # Benchmark configuration (override via: make run-benchmark BENCHMARK=--sweep)
@@ -6,6 +9,12 @@ DURATION ?= 10
 EXTRA ?=
 
 PYTEST=pytest
+
+GREEN  := \033[0;32m
+RED    := \033[0;31m
+YELLOW := \033[1;33m
+BLUE   := \033[0;34m
+RESET  := \033[0m
 
 # ---------------------------------------------------------
 # HL7 Engine Makefile
@@ -18,27 +27,88 @@ BENCH=python3 -m benchmarking.run_benchmark
 HL7_ENGINE_LOG=hl7engine.log
 
 # ---------------------------------------------------------
+# REST API Server
+# ---------------------------------------------------------
+
+REST_PORT := 8000
+REST_LOG := $(shell pwd)/monitoring/logs/restapi.log
+REST_PID := $(shell pwd)/monitoring/restapi.pid
+
+# ---------------------------------------------------------
 # PROMETHEUS
 # ---------------------------------------------------------
-PROM_DIR := /opt/prometheus
-PROMETHEUS_BIN := /opt/prometheus/prometheus
+# === Sudo apt install Prometheus Install ===
+# PROM_HOME := /opt/prometheus
+# PROM_BIN := $(PROM_HOME)/prometheus
+# PROM_CONF := $(PROM_HOME)/prometheus.yml
+# PROM_LOG := $(PROM_HOME)/prometheus.log
+# === Local prometheus Install ===
+PROM_HOME := $(HOME)/prometheus
+PROM_BIN := $(PROM_HOME)/prometheus
+PROM_CONF := $(PROM_HOME)/prometheus.yml
+
+PROM_LOG := $(shell pwd)/monitoring/logs/prometheus.log
+PROM_PID := $(shell pwd)/monitoring/prometheus.pid
+
+PROM_METRICS_URL := http://localhost:8010/metrics
+# Rule files in our repo
 PROM_RULES_SRC := $(shell pwd)/monitoring
 PROM_RULES := recording_rules.yml alert_rules.yml prometheus.yml
-PROM_CONFIG := $(shell pwd)/monitoring/prometheus.yml
-PROM_LOG := prometheus.log
-PROM_METRICS_URL := http://localhost:8010/metrics
 
 # ---------------------------------------------------------
 # GRAFANA (DEVELOPMENT SETTINGS)
 # ---------------------------------------------------------
-# APT INSTALL bin dir:
-GRAFANA_DEV_BIN := $(HOME)/grafana/bin/grafana
-GRAFANA_DEV_HOME := $(HOME)/grafana
-GRAFANA_DEV_CONF := $(HOME)/grafana/conf/defaults.ini
-GRAFANA_LOG := grafana.log
+# GRAFANA_DEV_BIN := $(HOME)/grafana/bin/grafana
+# GRAFANA_DEV_HOME := $(HOME)/grafana
+# GRAFANA_DEV_CONF := $(HOME)/grafana/conf/defaults.ini
+# GRAFANA_LOG := grafana.log
+# GRAFANA_DASH_SRC := $(shell pwd)/monitoring/dashboards
+# GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/monitoring/dashboards/hl7.yaml
+# GRAFANA_DASH_DST := $(HOME)/grafana/conf/provisioning/dashboards
+
+# === Local Grafana Install ===
+GRAFANA_HOME := $(HOME)/grafana
+GRAFANA_BIN := $(GRAFANA_HOME)/bin/grafana
+GRAFANA_CONF := $(GRAFANA_HOME)/conf/defaults.ini
+GRAFANA_DB := $(GRAFANA_HOME)/data/grafana.db
+GRAFANA_LOG := $(GRAFANA_HOME)/logs/grafana.log
+GRAFANA_PROVISIONING := $(GRAFANA_HOME)/conf/provisioning/dashboards
+GRAFANA_DASH_DST := $(GRAFANA_HOME)/conf/provisioning/dashboards
 GRAFANA_DASH_SRC := $(shell pwd)/monitoring/dashboards
-GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/monitoring/dashboards/hl7.yaml
-GRAFANA_DASH_DST := $(HOME)/grafana/conf/provisioning/dashboards
+
+# ---------------------------------------------------------
+# GENERAL & HELPER TARGETS
+# ---------------------------------------------------------
+define status_line
+	@printf "%-20s %-10s %-10s %-40s\n" "$(1)" "$(2)" "$(3)" "$(4)"
+endef
+
+define ok_fail
+	$(if $(1),$(GREEN)OK$(RESET),$(RED)FAIL$(RESET))
+endef
+
+define color_http
+	$(if $(filter 200,$(1)),$(GREEN)$(1)$(RESET),$(RED)$(1)$(RESET))
+endef
+
+define color_port
+	$(if $(filter open,$(1)),$(GREEN)open$(RESET),$(RED)closed$(RESET))
+endef
+
+define get_uptime
+	@ps -p $(1) -o etime= 2>/dev/null
+endef
+
+define check_port
+	@nc -z localhost $(1) >/dev/null 2>&1 && echo "open" || echo "closed"
+endef
+
+define check_http
+	@curl -s -o /dev/null -w "%{http_code}" $(1)
+endef
+
+print-green:
+	@printf "$(GREEN)OK$(RESET)\n"
 
 # ---------------------------------------------------------
 # INSTALL packages in editable mode for your Python env
@@ -71,26 +141,84 @@ restart-server-prom-bg:
 	make kill-own-server
 	make run-server-prom-bg
 
-server-status:
-	@echo "Checking for running HL7 MLLP server..."
-	@ps aux | grep "hl7engine.mllp_server" | grep -v grep || echo "No server running."
-
-server-status-all:
+hl7-server-status:
 	@echo "=== HL7 Engine Status ==="
 	@ps aux | grep "hl7engine.mllp_server" | grep -v grep || echo "No HL7 MLLP server running."
 
+hl7-server-status-full:
+	@echo "=== HL7 Engine Status ==="
+	@PID=$$(pgrep -f "[h]l7engine.mllp_server"); \
+	if [ -n "$$PID" ]; then \
+		UPTIME=$$(ps -p $$PID -o etime= | head -n 1); \
+		PORT=$$(nc -z localhost 2575 && echo "open" || echo "closed"); \
+		printf "%-20s %-10s %-10s %-10s\n" "Service" "PID" "Uptime" "Port"; \
+		printf "%-20s %-10s %-10s %-10s\n" "HL7 Engine" "$$PID" "$$UPTIME" "$$PORT"; \
+	else \
+		echo "HL7 Engine is NOT running."; \
+	fi
+
+# ---------------------------------------------------------
+# REST API SERVER Targets
+# ---------------------------------------------------------
+
+rest-api-bg:
+	@echo "Starting REST API in background..."
+	@mkdir -p $(shell pwd)/monitoring/logs
+	@nohup uvicorn hl7engine.api:app \
+		--host 0.0.0.0 \
+		--port $(REST_PORT) \
+		--reload \
+		> "$(REST_LOG)" 2>&1 &
+	@echo $$! > "$(REST_PID)"
+	@echo "REST API started (PID: $$(cat $(REST_PID))). Logs: $(REST_LOG)"
+
+rest-api-status:
 	@echo "\n=== REST API Status ==="
 	@ps aux | grep "uvicorn hl7engine.api" | grep -v grep || echo "No REST API server running."
 
+rest-api-status-full:
+	@echo "=== REST API Status ==="
+	@PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
+	if [ -n "$$PID" ]; then \
+		UPTIME=$$(ps -p $$PID -o etime= | head -n 1); \
+		PORT=$$(nc -z localhost $(REST_PORT) && echo "open" || echo "closed"); \
+		HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$(REST_PORT)/health); \
+		printf "%-20s %-10s %-10s %-10s %-10s\n" "Service" "PID" "Uptime" "Port" "Health"; \
+		printf "%-20s %-10s %-10s %-10s %-10s\n" "REST API" "$$PID" "$$UPTIME" "$$PORT" "$$HEALTH"; \
+	else \
+		echo "REST API is NOT running."; \
+	fi
+
+rest-api-kill:
+	@echo "Stopping REST API..."
+	@if [ -f "$(REST_PID)" ]; then \
+		kill `cat $(REST_PID)` 2>/dev/null || true; \
+		rm -f $(REST_PID); \
+		echo "REST API stopped."; \
+	else \
+		echo "No PID file found. Trying process scan..."; \
+		PIDS=`pgrep -f "uvicorn hl7engine.api"`; \
+		if [ -n "$$PIDS" ]; then kill $$PIDS; echo "REST API stopped."; else echo "REST API was not running."; fi; \
+	fi
+
+# ---------------------------------------------------------
+# ALL SERVER Targets
+# ---------------------------------------------------------
+
+all-server-status:
+#	@echo "=== HL7 Engine Status ==="
+	@$(MAKE) --no-print-directory hl7-server-status-full
+
+#	@echo "\n=== REST API Status ==="
+	@$(MAKE) --no-print-directory rest-api-status-full
+
 #	@echo "\n=== Prometheus Status ==="
-	@$(MAKE) --no-print-directory prometheus-status
+	@$(MAKE) --no-print-directory prometheus-status-full
 
 #	@echo "\n=== Grafana Status ==="
-	@$(MAKE) --no-print-directory grafana-status
+	@$(MAKE) --no-print-directory grafana-status-full
 
-# ---------------------------------------------------------
 # Kill own running HL7 MLLP server
-# ---------------------------------------------------------
 kill-own-server:
 	@echo "Killing HL7 MLLP server..."
 	@ps aux | grep "python3 -m hl7engine.mllp_server" | grep -v grep | awk '{print $$2}' | xargs -r kill
@@ -101,25 +229,20 @@ kill-own-server:
 # 	@ps -eo pid,cmd | grep "[p]ython3 -m hl7engine.mllp_server" | awk '{print $$1}' | xargs -r kill
 # 	@echo "Done."
 
-# ---------------------------------------------------------
+
 # Kill any running HL7 MLLP server (based on binary)
-# ---------------------------------------------------------
 kill-server:
 	@echo "Killing any running HL7 MLLP server processes..."
 	@pkill -f "hl7engine.mllp_server" || true
 	@echo "Done."
 
-# ---------------------------------------------------------
 # Kill any running Prometheus server (based on binary)
-# ---------------------------------------------------------
 kill-prometheus-all:
 	@echo "Stopping Prometheus server..."
 	@pkill -f "/opt/prometheus/prometheus" || true
 	@echo "Done."
 
-# ---------------------------------------------------------
 # Kill Prometheus server (based on PID)
-# ---------------------------------------------------------
 kill-prometheus:
 	@if [ -f prometheus.pid ]; then \
 		echo "Stopping Prometheus (PID: $$(cat prometheus.pid))..."; \
@@ -131,9 +254,7 @@ kill-prometheus:
 	fi
 	@echo "Done."
 
-# ---------------------------------------------------------
 # RUN UI (simple static file server)
-# ---------------------------------------------------------
 run-ui:
 	@echo "Serving UI at http://localhost:8000"
 	cd ui && python3 -m http.server 8000
@@ -156,8 +277,10 @@ reset:
 	make clean-results
 
 # ---------------------------------------------------------
-# ROUTED MESSAGE CLEANUP
+# CLEANUP
 # ---------------------------------------------------------
+
+# ROUTED FOLDER CLEANUP
 clean-routed:
 	@if [ -d "$(ROUTED_DIR)" ]; then \
 		echo "Cleaning routed/ folders..."; \
@@ -165,9 +288,7 @@ clean-routed:
 		find $(ROUTED_DIR) -type d -empty -delete; \
 	fi
 
-# ---------------------------------------------------------
 # RESULTS JSON CLEANUP
-# ---------------------------------------------------------
 clean-results:
 	rm -f benchmarking/results/run_*.json
 
@@ -265,20 +386,42 @@ run-benchmark:
 # -----------------------------------------------------------
 #   PROMETHEUS TARGETS
 # -----------------------------------------------------------
+
+prometheus-pid:
+	@ps -eo pid,cmd | grep "[p]rometheus" | awk '{print $$1}'
+
 # - $(shell pwd) ensures absolute paths
 # - cd $(shell pwd) ensures Prometheus resolves relative paths inside YAML
 # - Works from any directory, not just project root
 # - Works from VS Code, PyCharm, terminals, CI, etc.
 # - Background version logs cleanly
 prometheus:
-	@echo "Starting Prometheus using config: $(PROM_CONFIG)"
-	@cd $(shell pwd) && $(PROMETHEUS_BIN) --config.file="$(PROM_CONFIG)"
+	@echo "Starting Prometheus using config: $(PROM_CONF)"
+	@cd $(PROM_HOME) && $(PROM_BIN) --config.file="$(PROM_CONF)"
 
+# prometheus-bg:
+# 	@echo "Starting Prometheus in background using config: $(PROM_CONF)"
+# 	@mkdir -p $(shell pwd)/monitoring/logs
+# 	@cd $(PROM_HOME) && nohup $(PROM_BIN) --config.file="$(PROM_CONF)" > $(PROM_LOG) 2>&1 &
+# 	@echo $$! > prometheus.pid
+# 	@echo "Prometheus started in background (PID: $$(cat prometheus.pid)). Logs: $(PROM_LOG)"
+
+#Starting Prometheus no subshell, PID works
 prometheus-bg:
-	@echo "Starting Prometheus in background using config: $(PROM_CONFIG)"
-	@cd $(shell pwd) && nohup $(PROMETHEUS_BIN) --config.file="$(PROM_CONFIG)" > $(PROM_LOG) 2>&1 &
-	@echo $$! > prometheus.pid
-	@echo "Prometheus started in background (PID: $$(cat prometheus.pid)). Logs: $(PROM_LOG)"
+	@echo "Starting Prometheus in background using config: $(PROM_CONF)"
+	@mkdir -p $(shell pwd)/monitoring/logs
+	@nohup $(PROM_BIN) \
+		--config.file="$(PROM_CONF)" \
+		--web.listen-address=":9090" \
+		--storage.tsdb.path="$(PROM_HOME)/data" \
+		--web.console.libraries="$(PROM_HOME)/console_libraries" \
+		--web.console.templates="$(PROM_HOME)/consoles" \
+		--web.enable-lifecycle \
+		--web.enable-admin-api \
+		--web.enable-remote-write-receiver \
+		> "$(PROM_LOG)" 2>&1 &
+	@echo $$! > "$(PROM_PID)"
+	@echo "Prometheus started in background (PID: $$(cat $(PROM_PID))). Logs: $(PROM_LOG)"
 
 # -----------------------------------------------------------
 # This checks Prometheus Status:
@@ -288,11 +431,35 @@ prometheus-bg:
 # - Shows listening port
 # - Shows the config file use
 # -----------------------------------------------------------
+
 prometheus-status:
-#	@echo "Checking Prometheus status..."
-	@echo "\n=== Prometheus Status ==="
-	@if pgrep -x "$(notdir $(PROMETHEUS_BIN))" > /dev/null; then \
-		pgrep -fl "$(notdir $(PROMETHEUS_BIN))"; \
+	@echo "=== Prometheus Status ==="
+#	^$(PROM_BIN) matches only processes whose command starts with the full path
+#	It won't match: HL7 engine (python3), make or anything else containing 'prometheus'
+	@pgrep -fl "^$(PROM_BIN)" || echo "Prometheus is NOT running."
+#	Too broad: matches any process containing "prometheus", thus 
+#	also HL7 engine (python3) and Makefile process (make).
+#	@pgrep -fl "[p]rometheus" || echo "Prometheus is NOT running."
+
+# /opt/prometheus install version of status:
+# prometheus-status:
+# #	@echo "Checking Prometheus status..."
+# 	@echo "\n=== Prometheus Status ==="
+# 	@if pgrep -x "$(notdir $(PROM_BIN))" > /dev/null; then \
+# 		pgrep -fl "$(notdir $(PROM_BIN))"; \
+# 	else \
+# 		echo "Prometheus is NOT running."; \
+# 	fi
+
+prometheus-status-full:
+	@echo "=== Prometheus Status ==="
+	@PID=$$(pgrep -f "^$(PROM_BIN)"); \
+	if [ -n "$$PID" ]; then \
+		UPTIME=$$(ps -p $$PID -o etime=); \
+		PORT=$$(nc -z localhost 9090 && echo "open" || echo "closed"); \
+		HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9090/metrics); \
+		printf "%-20s %-10s %-10s %-10s %-10s\n" "Service" "PID" "Uptime" "Port" "Health"; \
+		printf "%-20s %-10s %-10s %-10s %-10s\n" "Prometheus" "$$PID" "$$UPTIME" "$$PORT" "$$HEALTH"; \
 	else \
 		echo "Prometheus is NOT running."; \
 	fi
@@ -308,39 +475,46 @@ prometheus-test:
 		echo "Prometheus endpoint NOT reachable."; \
 	fi
 
-restart-prometheus:
-	@echo "Restarting Prometheus..."
-	make kill-prometheus
-	make prometheus-bg
+restart-prometheus: prometheus-kill prometheus-bg
 	@echo "Prometheus restarted."
 
 # -----------------------------------------------------------
 # PROMETHEUS RULE SYNC / VALIDATION / RELOAD
 # -----------------------------------------------------------
 
+prometheus-kill:
+	@echo "Stopping Prometheus..."
+	@PIDS=`ps -eo pid,cmd | grep "[p]rometheus" | awk '{print $$1}'`; \
+	if [ -n "$$PIDS" ]; then \
+		kill $$PIDS; \
+		echo "Prometheus stopped."; \
+	else \
+		echo "Prometheus was not running."; \
+	fi
+
 # Copy rule files into /opt/prometheus (requires sudo)
 prometheus-sync-rules:
-	@echo "Copying Prometheus rule/config files into $(PROM_DIR)..."
+	@echo "Copying Prometheus rule/config files into $(PROM_HOME)..."
 	@for f in $(PROM_RULES); do \
 		echo "  - Copying $$f"; \
-		sudo cp $(PROM_RULES_SRC)/$$f $(PROM_DIR)/$$f; \
+		sudo cp $(PROM_RULES_SRC)/$$f $(PROM_HOME)/$$f; \
 	done
 	@echo "Done."
 
 # Validate Prometheus config + rules
 prometheus-validate:
 	@echo "Validating Prometheus configuration..."
-	@cd $(PROM_DIR) && ./promtool check config prometheus.yml
+	@cd $(PROM_HOME) && ./promtool check config prometheus.yml
 	@echo "Validating rule files..."
-	@cd $(PROM_DIR) && ./promtool check rules recording_rules.yml
-	@cd $(PROM_DIR) && ./promtool check rules alert_rules.yml
+	@cd $(PROM_HOME) && ./promtool check rules recording_rules.yml
+	@cd $(PROM_HOME) && ./promtool check rules alert_rules.yml
 	@echo "Validation OK."
 
 # Reload Prometheus via SIGHUP
 prometheus-reload:
 	@echo "Reloading Prometheus configuration..."
-	@if pgrep -x "prometheus" > /dev/null; then \
-		pkill -HUP -x "prometheus"; \
+	@if pgrep -x "$(notdir $(PROM_BIN))" > /dev/null; then \
+		pkill -HUP -x "$(notdir $(PROM_BIN))"; \
 		echo "Prometheus reloaded."; \
 	else \
 		echo "Prometheus is not running. Start it first."; \
@@ -352,35 +526,110 @@ prometheus-full-reload: prometheus-sync-rules prometheus-validate prometheus-rel
 
 # First-time install of rule files (creates missing files)
 prometheus-install-rules:
-	@echo "Installing Prometheus rule/config files into $(PROM_DIR)..."
-	@sudo cp $(PROM_RULES_SRC)/prometheus.yml $(PROM_DIR)/prometheus.yml
-	@sudo cp $(PROM_RULES_SRC)/recording_rules.yml $(PROM_DIR)/recording_rules.yml
-	@sudo cp $(PROM_RULES_SRC)/alert_rules.yml $(PROM_DIR)/alert_rules.yml
+	@echo "Installing Prometheus rule/config files into $(PROM_HOME)..."
+	@sudo cp $(PROM_RULES_SRC)/prometheus.yml $(PROM_HOME)/prometheus.yml
+	@sudo cp $(PROM_RULES_SRC)/recording_rules.yml $(PROM_HOME)/recording_rules.yml
+	@sudo cp $(PROM_RULES_SRC)/alert_rules.yml $(PROM_HOME)/alert_rules.yml
 	@echo "Installation complete."
 
 
 # -----------------------------------------------------------
 #   GRAFANA TARGETS
 # -----------------------------------------------------------
+
 # Start Grafana Server in foreground.
 # Grafana usually needs sudo because it binds to system directories.
+# grafana:
+# #	make grafana-disable-systemd
+# 	@echo "Starting Grafana..."
+# 	@$(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
+# 	@echo $$! > grafana.pid
+# 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
+
 grafana:
-#	make grafana-disable-systemd
-	@echo "Starting Grafana..."
-	@$(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
-	@echo $$! > grafana.pid
-	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
+	$(GRAFANA_BIN) server --homepath $(GRAFANA_HOME) --config $(GRAFANA_CONF)
 
 # Start Grafana Server in background.
 # Grafana usually needs sudo because it binds to system directories.
 grafana-bg:
-#	make grafana-disable-systemd
 	@echo "Starting Grafana in background..."
-	@nohup $(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
+	@mkdir -p $(GRAFANA_HOME)/logs
+	@nohup $(GRAFANA_BIN) server \
+	    --homepath $(GRAFANA_HOME) \
+	    --config $(GRAFANA_CONF) \
+	    > $(GRAFANA_LOG) 2>&1 &
 	@echo $$! > grafana.pid
-# 	@sleep 1
-# 	@pgrep -f "$(GRAFANA_DEV_BIN)" > grafana.pid
 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
+
+# grafana-bg:
+# #	make grafana-disable-systemd
+# 	@echo "Starting Grafana in background..."
+# 	@nohup $(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
+# 	@echo $$! > grafana.pid
+# # 	@sleep 1
+# # 	@pgrep -f "$(GRAFANA_DEV_BIN)" > grafana.pid
+# 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
+
+grafana-status:
+	@echo "=== Grafana Status ==="
+	@ps aux | grep "[g]rafana" | grep -v grep || echo "Grafana not running."
+
+grafana-status-full:
+	@echo "=== Grafana Status ==="
+	@PID=$$(pgrep -f "^grafana server"); \
+	if [ -n "$$PID" ]; then \
+		UPTIME=$$(ps -p $$PID -o etime= | head -n 1); \
+		PORT=$$(nc -z localhost 3000 && echo "open" || echo "closed"); \
+		HEALTH=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health); \
+		printf "%-20s %-10s %-10s %-10s %-10s\n" "Service" "PID" "Uptime" "Port" "Health"; \
+		printf "%-20s %-10s %-10s %-10s %-10s\n" "Grafana" "$$PID" "$$UPTIME" "$$PORT" "$$HEALTH"; \
+	else \
+		echo "Grafana is NOT running."; \
+	fi
+
+grafana-restart: grafana-kill grafana-bg
+	@echo "Grafana restarted."
+
+grafana-pid:
+	@ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'
+
+grafana-kill:
+	@echo "Stopping Grafana..."
+	@PIDS=`ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'`; \
+	if [ -n "$$PIDS" ]; then \
+		kill $$PIDS; \
+		echo "Grafana stopped."; \
+	else \
+		echo "Grafana was not running."; \
+	fi
+
+restart-grafana:grafana-kill grafana-bg
+	@echo "Grafana restarted."
+
+grafana-clear-dashboard:
+	@if [ -z "$(UID)" ]; then \
+		echo "Usage: make grafana-clear-dashboard UID=<dashboard_uid>"; \
+		echo " e.g.: make grafana-clear-dashboard UID=hl7-mllp-server"; \
+		exit 1; \
+	fi
+	@echo "Deleting dashboard with UID=$(UID)..."
+	@sqlite3 "$(GRAFANA_DB)" "DELETE FROM dashboard WHERE uid='$(UID)';"
+	@echo "Dashboard removed. Restart Grafana to re-import."
+
+
+grafana-sync-dashboards:
+	@echo "Copying Grafana dashboards into $(GRAFANA_PROVISIONING)..."
+	@mkdir -p $(GRAFANA_PROVISIONING)
+	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_PROVISIONING)/
+	@echo "Dashboards synced. Restart Grafana to apply."
+
+# 	@echo "Copying Grafana dashboards into $(GRAFANA_DASH_DST)..."
+# 	@mkdir -p $(GRAFANA_DASH_DST)
+# 	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_DASH_DST)/ 
+#   or
+#	@cp monitoring/dashboards/*.json $(GRAFANA_PROVISIONING)/
+# 	@cp $(GRAFANA_PROVISIONING_FILE_SRC) $(GRAFANA_DASH_DST)/
+# 	@echo "Dashboards synced."
 
 grafana-disable-systemd:
 	@echo "Disabling Grafana systemd services..."
@@ -411,16 +660,17 @@ grafana-disable-systemd:
 # 		echo "Grafana is NOT running."; \
 # 	fi
 
-
-kill-grafana:
-	@echo "Stopping Grafana..."
-	@if [ -f grafana.pid ]; then \
-		kill $$(cat grafana.pid) 2>/dev/null || true; \
-		rm -f grafana.pid; \
-	else \
-		pkill -f "$(HOME)/grafana/bin/grafana" 2>/dev/null || true; \
-	fi
-	@echo "Grafana stopped (if it was running)."
+# replaced
+# kill-grafana:
+# 	@echo "Stopping Grafana..."
+# 	@if [ -f grafana.pid ]; then \
+# 		kill $$(cat grafana.pid) 2>/dev/null || true; \
+# 		rm -f grafana.pid; \
+# 	else \
+# 		pkill -f "$(HOME)/grafana/bin/grafana" 2>/dev/null || true; \
+# 	fi
+# 	@echo "Grafana stopped (if it was running)."
+# previously:
 # 	@if [ -f grafana.pid ]; then \
 # 		echo "Stopping Grafana (PID: $$(cat grafana.pid))..."; \
 # 		sudo kill $$(cat grafana.pid) || true; \
@@ -431,56 +681,9 @@ kill-grafana:
 # 	fi
 # 	@echo "Done."
 
-
-
 # Clear Grafana DB via SQLite
 # sqlite3 ~/grafana/data/grafana.db \
 #   "delete from dashboard where uid='hl7-mllp-server';"
-
-
-restart-grafana:
-	@echo "Restarting Grafana..."
-	make kill-grafana
-	make grafana-bg
-	@echo "Grafana restarted."
-
-
-
-grafana-status:
-	@echo "=== Grafana Status ==="
-	@ps -eo pid,cmd | grep "[g]rafana-server" || echo "Grafana not running."
-
-grafana-restart: grafana-kill grafana-bg
-	@echo "Grafana restarted."
-
-grafana-pid:
-	@ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'
-
-grafana-kill:
-	@echo "Stopping Grafana..."
-	@PIDS=`ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'`; \
-	if [ -n "$$PIDS" ]; then \
-		kill $$PIDS; \
-		echo "Grafana stopped."; \
-	else \
-		echo "Grafana was not running."; \
-	fi
-
-grafana-clear-dashboard:
-	@if [ -z "$(UID)" ]; then \
-		echo "Usage: make grafana-clear-dashboard UID=<dashboard_uid>"; \
-		exit 1; \
-	fi
-	@echo "Deleting dashboard with UID=$(UID)..."
-	@sqlite3 $(GRAFANA_DB) "delete from dashboard where uid='$(UID)';"
-	@echo "Dashboard removed. Restart Grafana to re-import."
-
-grafana-sync-dashboards:
-	@echo "Copying Grafana dashboards into $(GRAFANA_DASH_DST)..."
-	@mkdir -p $(GRAFANA_DASH_DST)
-	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_DASH_DST)/
-	@cp $(GRAFANA_PROVISIONING_FILE_SRC) $(GRAFANA_DASH_DST)/
-	@echo "Dashboards synced."
 
 # ---------------------------------------------------------
 # Start all servers (MLLP, Grafana + Prometheus) in background
@@ -495,8 +698,8 @@ monitoring-stack:
 # Kill MLLP, Grafana + Prometheus servers (based on PID)
 # ---------------------------------------------------------
 kill-monitoring:
-	make kill-prometheus
-	make kill-grafana
+	make prometheus-kill
+	make grafana-kill
 	make kill-own-server
 
 monitoring-stack-restart:
@@ -521,8 +724,8 @@ monitoring-logs:
 observability-clean:
 	@echo "Stopping all observability services..."
 	- make kill-server
-	- make kill-prometheus
-	- make kill-grafana
+	- make prometheus-kill
+	- make grafana-kill
 
 	@echo "Removing PID and log files..."
 	- rm -f hl7engine.pid prometheus.pid grafana.pid

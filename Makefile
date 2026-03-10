@@ -1,5 +1,15 @@
-# Enable color coding: use Bash, not Dash (default)
-SHELL := /bin/bash
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+include $(MAKEFILE_DIR)/makefiles/utils.mk
+include $(MAKEFILE_DIR)/makefiles/monitoring.mk
+
+# include makefiles/utils.mk
+# include makefiles/hl7.mk
+# include makefiles/restapi.mk
+# include makefiles/html.mk
+# include makefiles/prometheus.mk
+# include makefiles/grafana.mk
+# include makefiles/monitoring.mk
 
 .DEFAULT_GOAL := help
 
@@ -33,6 +43,11 @@ HL7_ENGINE_LOG=hl7engine.log
 REST_PORT := 8000
 REST_LOG := $(shell pwd)/monitoring/logs/restapi.log
 REST_PID := $(shell pwd)/monitoring/restapi.pid
+
+# ---------------------------------------------------------
+# HTML UI VIEWER
+# ---------------------------------------------------------
+HTML_PORT := 8080
 
 # ---------------------------------------------------------
 # PROMETHEUS
@@ -119,27 +134,29 @@ install:
 # ---------------------------------------------------------
 # HL7 SERVER Targets
 # ---------------------------------------------------------
-run-server:
-	@echo "Starting HL7 MLLP server..."
+hl7-start-fg:
+	@echo "Starting HL7 MLLP server in foreground..."
 	python3 -m hl7engine.mllp_server
 
-run-server-prom:
-	@echo "Starting HL7 engine with Prometheus ..."
+hl7-start-prom-fg:
+	@echo "Starting HL7 engine with Prometheus in foreground ..."
 	python3 -m hl7engine.mllp_server --prometheus
 
-run-server-prom-bg:
+#run-server-prom-bg:
+hl7-start:
 	@echo "Starting HL7 engine with Prometheus in background..."
 	@nohup python3 -m hl7engine.mllp_server --prometheus > $(HL7_ENGINE_LOG) 2>&1 &
 	@echo $$! > hl7engine.pid
 	@echo "HL7 engine started (PID: $$(cat hl7engine.pid)). Logs: $(HL7_ENGINE_LOG)"
 
-restart-server:
-	make kill-own-server
-	make run-server
-
-restart-server-prom-bg:
-	make kill-own-server
-	make run-server-prom-bg
+hl7-stop:
+	@PID=$$(pgrep -f "[h]l7engine.mllp_server"); \
+	if [ -n "$$PID" ]; then \
+		echo "Stopping HL7 Engine (PID $$PID)"; \
+		kill $$PID; \
+	else \
+		echo "HL7 Engine not running."; \
+	fi
 
 hl7-server-status:
 	@echo "=== HL7 Engine Status ==="
@@ -157,11 +174,37 @@ hl7-server-status-full:
 		echo "HL7 Engine is NOT running."; \
 	fi
 
+restart-server:
+	make kill-own-server
+	make run-server
+
+restart-server-prom-bg:
+	make kill-own-server
+	make run-server-prom-bg
+
+# Kill own running HL7 MLLP server
+kill-own-server:
+	@echo "Killing HL7 MLLP server..."
+	@ps aux | grep "python3 -m hl7engine.mllp_server" | grep -v grep | awk '{print $$2}' | xargs -r kill
+	@echo "Done."
+
+# kill-own-server:
+# 	@echo "Killing HL7 MLLP server..."
+# 	@ps -eo pid,cmd | grep "[p]ython3 -m hl7engine.mllp_server" | awk '{print $$1}' | xargs -r kill
+# 	@echo "Done."
+
+# Kill any running HL7 MLLP server (based on binary)
+kill-server:
+	@echo "Killing any running HL7 MLLP server processes..."
+	@pkill -f "hl7engine.mllp_server" || true
+	@echo "Done."
+
 # ---------------------------------------------------------
 # REST API SERVER Targets
 # ---------------------------------------------------------
 
-rest-api-bg:
+#rest-api-bg:
+rest-start:
 	@echo "Starting REST API in background..."
 	@mkdir -p $(shell pwd)/monitoring/logs
 	@nohup uvicorn hl7engine.api:app \
@@ -171,6 +214,15 @@ rest-api-bg:
 		> "$(REST_LOG)" 2>&1 &
 	@echo $$! > "$(REST_PID)"
 	@echo "REST API started (PID: $$(cat $(REST_PID))). Logs: $(REST_LOG)"
+
+rest-stop:
+	@PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
+	if [ -n "$$PID" ]; then \
+		echo "Stopping REST API (PID $$PID)"; \
+		kill $$PID; \
+	else \
+		echo "REST API not running."; \
+	fi
 
 rest-api-status:
 	@echo "\n=== REST API Status ==="
@@ -218,24 +270,6 @@ all-server-status:
 #	@echo "\n=== Grafana Status ==="
 	@$(MAKE) --no-print-directory grafana-status-full
 
-# Kill own running HL7 MLLP server
-kill-own-server:
-	@echo "Killing HL7 MLLP server..."
-	@ps aux | grep "python3 -m hl7engine.mllp_server" | grep -v grep | awk '{print $$2}' | xargs -r kill
-	@echo "Done."
-
-# kill-own-server:
-# 	@echo "Killing HL7 MLLP server..."
-# 	@ps -eo pid,cmd | grep "[p]ython3 -m hl7engine.mllp_server" | awk '{print $$1}' | xargs -r kill
-# 	@echo "Done."
-
-
-# Kill any running HL7 MLLP server (based on binary)
-kill-server:
-	@echo "Killing any running HL7 MLLP server processes..."
-	@pkill -f "hl7engine.mllp_server" || true
-	@echo "Done."
-
 # Kill any running Prometheus server (based on binary)
 kill-prometheus-all:
 	@echo "Stopping Prometheus server..."
@@ -254,10 +288,28 @@ kill-prometheus:
 	fi
 	@echo "Done."
 
-# RUN UI (simple static file server)
 run-ui:
-	@echo "Serving UI at http://localhost:8000"
-	cd ui && python3 -m http.server 8000
+	@echo "Serving UI at http://localhost:8080"
+	cd ui && python3 -m http.server 8080 >/dev/null 2>&1
+
+run-ui-bg:
+	@echo "Serving UI at http://localhost:8080"
+	cd ui && python3 -m http.server 8080 >/dev/null 2>&1 &
+
+ui-start:
+	@echo "Starting UI server on port $(HTML_PORT)..."
+	cd ui && nohup python3 -m http.server $(HTML_PORT) \
+		>/dev/null 2>&1 &
+	@echo "UI server started."
+
+ui-stop:
+	@PID=$$(pgrep -f "[p]ython.*http.server $(HTML_PORT)"); \
+	if [ -n "$$PID" ]; then \
+		echo "Stopping UI server (PID $$PID)"; \
+		kill $$PID; \
+	else \
+		echo "UI server not running."; \
+	fi
 
 # ---------------------------------------------------------
 # DATABASE MANAGEMENT
@@ -423,6 +475,32 @@ prometheus-bg:
 	@echo $$! > "$(PROM_PID)"
 	@echo "Prometheus started in background (PID: $$(cat $(PROM_PID))). Logs: $(PROM_LOG)"
 
+prom-start:
+	@echo "Starting Prometheus in background using config: $(PROM_CONF)..."
+	@mkdir -p $(shell pwd)/monitoring/logs
+	@nohup $(PROM_BIN) \
+		--config.file="$(PROM_CONF)" \
+		--web.listen-address=":9090" \
+		--storage.tsdb.path="$(PROM_HOME)/data" \
+		--web.console.libraries="$(PROM_HOME)/console_libraries" \
+		--web.console.templates="$(PROM_HOME)/consoles" \
+		--web.enable-lifecycle \
+		--web.enable-admin-api \
+		--web.enable-remote-write-receiver \
+		> "$(PROM_LOG)" 2>&1 &
+	@echo $$! > "$(PROM_PID)"
+	@echo "Prometheus started in background (PID: $$(cat $(PROM_PID))). Logs: $(PROM_LOG)"
+#	@$(PROM_BIN) --config.file=$(PROM_CONFIG) >/dev/null 2>&1 &
+
+prom-stop:
+	@PID=$$(pgrep -f "^$(PROM_BIN)"); \
+	if [ -n "$$PID" ]; then \
+		echo "Stopping Prometheus (PID $$PID)"; \
+		kill $$PID; \
+	else \
+		echo "Prometheus not running."; \
+	fi
+
 # -----------------------------------------------------------
 # This checks Prometheus Status:
 # -----------------------------------------------------------
@@ -561,22 +639,35 @@ grafana-bg:
 	@echo $$! > grafana.pid
 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
 
-# grafana-bg:
-# #	make grafana-disable-systemd
-# 	@echo "Starting Grafana in background..."
-# 	@nohup $(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
-# 	@echo $$! > grafana.pid
-# # 	@sleep 1
-# # 	@pgrep -f "$(GRAFANA_DEV_BIN)" > grafana.pid
-# 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
+grafana-start:
+	@echo "Starting Grafana in background..."
+	@mkdir -p $(GRAFANA_HOME)/logs
+	@sh -c ' \
+		nohup $(GRAFANA_BIN) server \
+			--homepath $(GRAFANA_HOME) \
+			--config $(GRAFANA_CONF) \
+			> $(GRAFANA_LOG) 2>&1 & \
+		echo $$! > grafana.pid \
+	'
+	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
+#	@grafana server >/dev/null 2>&1 &
+
+grafana-stop:
+	@PID=$$(pgrep -f "[g]rafana server"); \
+	if [ -n "$$PID" ]; then \
+		echo "Stopping Grafana (PID $$PID)"; \
+		kill $$PID; \
+	else \
+		echo "Grafana not running."; \
+	fi
 
 grafana-status:
 	@echo "=== Grafana Status ==="
-	@ps aux | grep "[g]rafana" | grep -v grep || echo "Grafana not running."
+	@ps aux | grep "[g]rafana server" | grep -v grep || echo "Grafana not running."
 
 grafana-status-full:
 	@echo "=== Grafana Status ==="
-	@PID=$$(pgrep -f "^grafana server"); \
+	@PID=$$(pgrep -f "[g]rafana server"); \
 	if [ -n "$$PID" ]; then \
 		UPTIME=$$(ps -p $$PID -o etime= | head -n 1); \
 		PORT=$$(nc -z localhost 3000 && echo "open" || echo "closed"); \
@@ -638,49 +729,6 @@ grafana-disable-systemd:
 	@sudo systemctl stop grafana-server
 	@echo "Grafana systemd services disabled."
 
-
-# grafana-status:
-# 	@echo "\n=== Grafana Status ==="
-# 	@if pgrep -f "$(GRAFANA_DEV_BIN)" > /dev/null; then \
-# 		pgrep -fl "$(GRAFANA_DEV_BIN)"; \
-# 	else \
-# 		echo "Grafana is NOT running."; \
-# 	fi
-# 	@echo "\n=== Grafana Status ==="
-# 	@if pgrep -f "grafana-server|grafana" > /dev/null; then \
-# 		pgrep -fl "grafana-server|grafana"; \
-# 	else \
-# 		echo "Grafana is NOT running."; \
-# 	fi
-
-# 	@echo "\n=== Grafana Status ==="
-# 	@if pgrep -x "$(notdir $(GRAFANA_BIN))" > /dev/null; then \
-# 		pgrep -fl "$(notdir $(GRAFANA_BIN))"; \
-# 	else \
-# 		echo "Grafana is NOT running."; \
-# 	fi
-
-# replaced
-# kill-grafana:
-# 	@echo "Stopping Grafana..."
-# 	@if [ -f grafana.pid ]; then \
-# 		kill $$(cat grafana.pid) 2>/dev/null || true; \
-# 		rm -f grafana.pid; \
-# 	else \
-# 		pkill -f "$(HOME)/grafana/bin/grafana" 2>/dev/null || true; \
-# 	fi
-# 	@echo "Grafana stopped (if it was running)."
-# previously:
-# 	@if [ -f grafana.pid ]; then \
-# 		echo "Stopping Grafana (PID: $$(cat grafana.pid))..."; \
-# 		sudo kill $$(cat grafana.pid) || true; \
-# 		rm grafana.pid; \
-# 	else \
-# 		echo "No grafana.pid found. Killing by process name..."; \
-# 		sudo pkill -f "$(GRAFANA_BIN)" || true; \
-# 	fi
-# 	@echo "Done."
-
 # Clear Grafana DB via SQLite
 # sqlite3 ~/grafana/data/grafana.db \
 #   "delete from dashboard where uid='hl7-mllp-server';"
@@ -690,7 +738,8 @@ grafana-disable-systemd:
 # This allows executing test bench, benchmarks, etc. afterwards
 # ---------------------------------------------------------
 monitoring-stack:
-	make run-server-prom-bg
+#	make run-server-prom-bg
+	make hl7-start
 	make prometheus-bg
 	make grafana-bg
 
@@ -738,6 +787,24 @@ observability-clean:
 	- rm -f data/hl7_messages.db
 
 	@echo "Observability environment cleaned."
+
+# ---------------------------------------------------------
+# Full Stack Targets (HL7 Engine, REST API, UI, Prometheus, Grafana)
+# ---------------------------------------------------------
+
+# Start order is important (DO NOT CHANGE)
+stack-start: hl7-start rest-start ui-start prom-start grafana-start
+	@echo "$(GREEN)All services started$(RESET)"
+
+# Stop order (reverse) avoids race conditions and ensures dependencies are ready
+stack-stop: grafana-stop prom-stop ui-stop rest-stop hl7-stop
+	@echo "$(YELLOW)All services stopped$(RESET)"
+
+stack-restart:
+	@echo "Restarting full stack..."
+	@$(MAKE) --no-print-directory stack-stop
+	@sleep 1
+	@$(MAKE) --no-print-directory stack-start
 
 # ---------------------------------------------------------
 # HELP

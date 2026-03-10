@@ -1,11 +1,11 @@
-monitoring-watch:
+monitoring-watch: ## Watch Monitoring Server Stack Status with 1sec Refresh Rate
 	@while true; do \
 		clear; \
 		$(MAKE) --no-print-directory monitoring-status; \
 		sleep 1; \
 	done
 
-monitoring-status:
+monitoring-status: ## Monitoring Server Stack Detailled Status
 	@echo "==================== $(BLUE)HL7 CORE STACK$(RESET) ===================="
 	@printf "%-15s %-8s %-12s %-8s %-8s %-10s\n" "Service" "PID" "Uptime" "Port" "Health" "Status"
 
@@ -78,7 +78,7 @@ monitoring-status:
 	@$(MAKE) --no-print-directory monitoring-summary
 
 
-monitoring-summary:
+monitoring-summary: ## Monitoring Server Stack Status Summary
 	@HL7_PID=$$(pgrep -f "[h]l7engine.mllp_server"); \
 	REST_PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
 	HTML_PID=$$(pgrep -f "[p]ython.*http.server $(HTML_PORT)"); \
@@ -96,7 +96,7 @@ monitoring-summary:
 	fi
 
 
-monitoring-health:
+monitoring-health: ## Monitoring Server Stack Health Summary
 	@HL7_PID=$$(pgrep -f "[h]l7engine.mllp_server"); \
 	REST_PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
 	HTML_PID=$$(pgrep -f "[p]ython.*http.server $(HTML_PORT)"); \
@@ -116,7 +116,7 @@ monitoring-health:
 		exit 1; \
 	fi
 
-monitoring-status-compact:
+monitoring-status-compact: ## 1-line full Server Stack Status (ideal for CLI)
 	@HL7_PID=$$(pgrep -f "[h]l7engine.mllp_server"); \
 	REST_PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
 	HTML_PID=$$(pgrep -f "[p]ython.*http.server $(HTML_PORT)"); \
@@ -139,3 +139,41 @@ monitoring-status-compact:
 	fi; \
 	printf "%bHL7:%s REST:%s HTML:%s PROM:%s GRAF:%s → %s%b\n" \
 		"$$COLOR" "$$HL7" "$$REST" "$$HTML" "$$PROM" "$$GRAF" "$$STATUS" "$(RESET)"
+
+
+# ---------------------------------------------------------
+# Start all servers (MLLP, Grafana + Prometheus) in background
+# This allows executing test bench, benchmarks, etc. afterwards
+# ---------------------------------------------------------
+# monitoring-stack:
+# #	make run-server-prom-bg
+# 	make hl7-start
+# 	make prometheus-bg
+# 	make grafana-bg
+
+# ---------------------------------------------------------
+# Kill MLLP, Grafana + Prometheus servers (based on PID)
+# ---------------------------------------------------------
+# kill-monitoring:
+# 	make prometheus-kill
+# 	make grafana-kill
+# 	make kill-own-server
+
+# monitoring-stack-restart:
+# 	make kill-monitoring
+# 	make monitoring-stack
+
+monitoring-logs: ## (Deprecated) Show Prometheus and Grafana log files (50 lines)
+	@echo "=== Prometheus Logs ==="
+	@if [ -f "$(PROM_LOG)" ]; then \
+		tail -n 50 $(PROM_LOG); \
+	else \
+		echo "No Prometheus log file found."; \
+	fi
+
+	@echo "\n=== Grafana Logs ==="
+	@if [ -f "$(GRAFANA_LOG)" ]; then \
+		tail -n 50 $(GRAFANA_LOG); \
+	else \
+		echo "No Grafana log file found."; \
+	fi

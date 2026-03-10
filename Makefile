@@ -4,7 +4,7 @@ include $(MAKEFILE_DIR)/makefiles/utils.mk
 include $(MAKEFILE_DIR)/makefiles/hl7.mk
 include $(MAKEFILE_DIR)/makefiles/rest.mk
 include $(MAKEFILE_DIR)/makefiles/ui.mk
-include $(MAKEFILE_DIR)/makefiles/promoetheus.mk
+include $(MAKEFILE_DIR)/makefiles/prometheus.mk
 include $(MAKEFILE_DIR)/makefiles/grafana.mk
 include $(MAKEFILE_DIR)/makefiles/monitoring.mk
 include $(MAKEFILE_DIR)/makefiles/orchestration.mk

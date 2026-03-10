@@ -124,7 +124,7 @@ restart-prometheus: prometheus-kill prometheus-bg
 # PROMETHEUS RULE SYNC / VALIDATION / RELOAD
 # -----------------------------------------------------------
 
-prometheus-kill:
+prometheus-kill: # Kill prometheus server instance
 	@echo "Stopping Prometheus..."
 	@PIDS=`ps -eo pid,cmd | grep "[p]rometheus" | awk '{print $$1}'`; \
 	if [ -n "$$PIDS" ]; then \
@@ -134,8 +134,7 @@ prometheus-kill:
 		echo "Prometheus was not running."; \
 	fi
 
-# Copy rule files into /opt/prometheus (requires sudo)
-prometheus-sync-rules:
+prometheus-sync-rules: ## Copy rule files into /opt/prometheus (requires sudo)
 	@echo "Copying Prometheus rule/config files into $(PROM_HOME)..."
 	@for f in $(PROM_RULES); do \
 		echo "  - Copying $$f"; \
@@ -143,8 +142,7 @@ prometheus-sync-rules:
 	done
 	@echo "Done."
 
-# Validate Prometheus config + rules
-prometheus-validate:
+prometheus-validate: ## Validate Prometheus config + rules
 	@echo "Validating Prometheus configuration..."
 	@cd $(PROM_HOME) && ./promtool check config prometheus.yml
 	@echo "Validating rule files..."
@@ -152,8 +150,7 @@ prometheus-validate:
 	@cd $(PROM_HOME) && ./promtool check rules alert_rules.yml
 	@echo "Validation OK."
 
-# Reload Prometheus via SIGHUP
-prometheus-reload:
+prometheus-reload: ## Reload Prometheus via SIGHUP
 	@echo "Reloading Prometheus configuration..."
 	@if pgrep -x "$(notdir $(PROM_BIN))" > /dev/null; then \
 		pkill -HUP -x "$(notdir $(PROM_BIN))"; \
@@ -162,26 +159,22 @@ prometheus-reload:
 		echo "Prometheus is not running. Start it first."; \
 	fi
 
-# Full workflow: sync → validate → reload
-prometheus-full-reload: prometheus-sync-rules prometheus-validate prometheus-reload
+prometheus-full-reload: prometheus-sync-rules prometheus-validate prometheus-reload ## Full workflow: sync → validate → reload
 	@echo "Prometheus rules synced, validated, and reloaded."
 
-# First-time install of rule files (creates missing files)
-prometheus-install-rules:
+prometheus-install-rules: ## First-time install of rule files (creates missing files)
 	@echo "Installing Prometheus rule/config files into $(PROM_HOME)..."
 	@sudo cp $(PROM_RULES_SRC)/prometheus.yml $(PROM_HOME)/prometheus.yml
 	@sudo cp $(PROM_RULES_SRC)/recording_rules.yml $(PROM_HOME)/recording_rules.yml
 	@sudo cp $(PROM_RULES_SRC)/alert_rules.yml $(PROM_HOME)/alert_rules.yml
 	@echo "Installation complete."
 
-# Kill any running Prometheus server (based on binary)
-kill-prometheus-all:
+kill-prometheus-all: ## Kill any running Prometheus server (based on binary)
 	@echo "Stopping Prometheus server..."
 	@pkill -f "/opt/prometheus/prometheus" || true
 	@echo "Done."
 
-# Kill Prometheus server (based on PID)
-kill-prometheus:
+kill-prometheus: ## Kill Prometheus server (based on PID)
 	@if [ -f prometheus.pid ]; then \
 		echo "Stopping Prometheus (PID: $$(cat prometheus.pid))..."; \
 		kill $$(cat prometheus.pid) 2>/dev/null || true; \

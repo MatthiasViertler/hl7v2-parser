@@ -74,11 +74,15 @@ hl7engine/_version.py
 prometheus-data/
 prometheus.log
 prometheus.pid
+
 grafana-data/
 grafana.log
 grafana.pid
-grafana/
-grafana/**
+
+# Ignore everything in grafana/ except hl7-engine dashboards
+grafana/*
+!grafana/hl7-engine/
+!grafana/hl7-engine/*.json
 
 ##############################
 # UI / FRONTEND ARTIFACTS    #

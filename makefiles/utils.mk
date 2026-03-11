@@ -97,14 +97,14 @@ define color_port
 	$(if $(filter open,$(1)),$(GREEN)open$(RESET),$(RED)closed$(RESET))
 endef
 
-define get_uptime
+define get_uptime ## Parse server uptime
 	@ps -p $(1) -o etime= 2>/dev/null
 endef
 
-define check_port
+define check_port ## Check server port
 	@nc -z localhost $(1) >/dev/null 2>&1 && echo "open" || echo "closed"
 endef
 
-define check_http
+define check_http ## Check server address
 	@curl -s -o /dev/null -w "%{http_code}" $(1)
 endef

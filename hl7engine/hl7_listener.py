@@ -1,3 +1,5 @@
+# hl7engine/hl7_listener.py
+
 # HL7 advanced listener including:
 # - MLLP frame splitting (handled by caller / extractor)
 # - MSG routing
@@ -5,8 +7,11 @@
 # - SQLite DB Message Storage
 # - Field, Component and Subcomponent support
 #
-# 2026-Mar-01 (revised with HL7 v2.3 → v2.3.1 normalization)
-# 2026-Mar-07 (refactored for fast & slow track to handle early ACKs)
+# 2026-Mar-01: revised with HL7 v2.3 → v2.3.1 normalization
+# 2026-Mar-07: refactored for fast & slow track to handle early ACKs
+# 2026-Mar-11: refactored for low-cardinality metrics incl. labelling, cleaned parsing logic, improved predictability/readability
+
+# hl7engine/hl7_listener.py
 
 from hl7apy.parser import parse_message
 from hl7apy.exceptions import HL7apyException
@@ -52,7 +57,6 @@ def normalize_version(raw_hl7: str) -> str:
         msh[11] = version
 
     if version == "2.3":
-        print("Normalizing HL7 version 2.3 → 2.3.1 for hl7apy compatibility")
         msh[11] = "2.3.1"
 
     segments[0] = "|".join(msh)
@@ -60,7 +64,7 @@ def normalize_version(raw_hl7: str) -> str:
 
 
 # ------------------------------------------------------------
-# NEW: FAST PHASE (parse + validate + build ACK)
+# FAST PHASE (parse + validate + build ACK)
 # ------------------------------------------------------------
 
 def fast_ack_phase(raw_hl7: str, sender_ip: str):
@@ -75,18 +79,15 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
 
     Returns:
         ack (str)
-        context (dict) → used later for routing, DB, logging
+        context (dict)
     """
 
     raw_hl7 = normalize_hl7(raw_hl7)
 
     # Empty frame
     if not raw_hl7.strip():
-        metrics.inc("invalid_frame")
+        metrics.inc("parser_parse_errors_total", labels={"error_code": "EMPTY"})
         ack = build_ack_simple("UNKNOWN", "AE", "Empty HL7 frame")
-        # Prometheus metric names cannot contain dots
-        sender_ip_prometheus = sender_ip.replace(".", "_")
-        metrics.inc(f"sender_messages_total_{sender_ip_prometheus}")
         return ack, {
             "raw_hl7_norm": "",
             "msg": None,
@@ -94,8 +95,6 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
             "trigger_event": None,
             "control_id": None,
             "patient_id": None,
-            "folder": None,
-            "routed_path": None,
             "ack_code": "AE",
             "error_text": "Empty HL7 frame",
             "sender_ip": sender_ip,
@@ -103,11 +102,8 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
 
     # Invalid HL7 (no MSH)
     if not raw_hl7.startswith("MSH"):
-        metrics.inc("invalid_frame")
+        metrics.inc("parser_parse_errors_total", labels={"error_code": "NO_MSH"})
         ack = build_ack_simple("UNKNOWN", "AE", "Invalid HL7 message")
-        # Prometheus metric names cannot contain dots
-        sender_ip_prometheus = sender_ip.replace(".", "_")
-        metrics.inc(f"sender_messages_total_{sender_ip_prometheus}")
         return ack, {
             "raw_hl7_norm": raw_hl7,
             "msg": None,
@@ -115,19 +111,10 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
             "trigger_event": None,
             "control_id": "UNKNOWN",
             "patient_id": None,
-            "folder": None,
-            "routed_path": None,
             "ack_code": "AE",
             "error_text": "Invalid HL7 message",
             "sender_ip": sender_ip,
         }
-
-    # Pretty-print incoming message
-    print("\n--- Received HL7 Message ---")
-    for line in raw_hl7.split("\r"):
-        if line:
-            print(line)
-    print("----------------------------\n")
 
     raw_hl7_norm = normalize_version(raw_hl7)
 
@@ -136,65 +123,57 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
     trigger_event = None
     control_id = "UNKNOWN"
     patient_id = None
-    facility = "UNKNOWN"
-    ack_code = "AE"
-    error_text = None
+    version = None
 
     try:
         # Parse
         msg = parse_message(raw_hl7_norm, find_groups=False)
+        metrics.inc("parser_messages_parsed_total")
 
-        # Extract metadata
+        # Extract version
         try:
-            metrics.inc("parse_success")
-            patient_id = msg.pid.pid_3.to_er7().split("^")[0]
-            facility = msg.msh.msh_4.value
-            # Prometheus metric names cannot contain dots
-            facility_prometheus = facility.replace(".", "_")
-            metrics.inc(f"facility_messages_total_{facility_prometheus}")
+            version = msg.msh.msh_12.value or "UNKNOWN"
+            metrics.inc("parser_versions_total", labels={"version": version})
         except Exception:
-            # Prometheus metric names cannot contain dots
-            sender_ip_prometheus = sender_ip.replace(".", "_")
-            facility_prometheus = facility.replace(".", "_")
-            metrics.inc("parse_failure")
-            metrics.inc(f"sender_parse_failure_{sender_ip_prometheus}")
-            metrics.inc(f"facility_parse_failure_{facility_prometheus}")
-            patient_id = None
+            metrics.inc("parser_parse_errors_total", labels={"error_code": "VERSION"})
+            version = "UNKNOWN"
 
+        # Extract message type + trigger event
+        try:
+            msg_type = msg.msh.msh_9.msh_9_1.value or "UNKNOWN"
+            trigger_event = msg.msh.msh_9.msh_9_2.value or None
+
+            metrics.inc("parser_message_types_total", labels={"message_type": msg_type})
+        except Exception:
+            metrics.inc("parser_parse_errors_total", labels={"error_code": "MSH9"})
+            msg_type = "UNKNOWN"
+            trigger_event = None
+
+        # Extract control ID
         try:
             control_id = msg.msh.msh_10.value or "UNKNOWN"
         except Exception:
             control_id = "UNKNOWN"
 
+        # Extract patient ID (optional)
         try:
-            msg_type = msg.msh.msh_9.msh_9_1.value or "UNKNOWN"
-            trigger_event = msg.msh.msh_9.msh_9_2.value or None
-            
-            if msg_type:
-                metrics.inc(f"msg_type_{msg_type}")
-
-            if trigger_event:
-                metrics.inc(f"trigger_event_{trigger_event}")
+            patient_id = msg.pid.pid_3.to_er7().split("^")[0]
         except Exception:
-            msg_type = "UNKNOWN"
-            trigger_event = None
+            patient_id = None
 
         # VALIDATION
         ack_code, error_text = validator.validate(msg)
-        metrics.inc(f"validation_{ack_code}")
+
         if ack_code != "AA":
-            # Prometheus metric names cannot contain dots
-            sender_ip_prometheus = sender_ip.replace(".", "_")
-            facility_prometheus = facility.replace(".", "_")
-            metrics.inc(f"sender_validation_failure_{sender_ip_prometheus}")
-            metrics.inc(f"facility_validation_failure_{facility_prometheus}")
+            metrics.inc(
+                "parser_validation_errors_total",
+                labels={"error_code": ack_code},
+            )
 
     except Exception as e:
         # Parsing error → fallback ACK
+        metrics.inc("parser_parse_errors_total", labels={"error_code": "PARSE"})
         ack = build_ack_simple("UNKNOWN", "AE", f"Parsing error: {e}")
-        # Prometheus metric names cannot contain dots
-        sender_ip_prometheus = sender_ip.replace(".", "_")
-        metrics.inc(f"sender_validation_failure_{sender_ip_prometheus}")
         return ack, {
             "raw_hl7_norm": raw_hl7_norm,
             "msg": None,
@@ -202,12 +181,9 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
             "trigger_event": None,
             "control_id": "UNKNOWN",
             "patient_id": None,
-            "folder": None,
-            "routed_path": None,
             "ack_code": "AE",
             "error_text": str(e),
             "sender_ip": sender_ip,
-            "facility_ip": facility,
         }
 
     # Build ACK (fast)
@@ -224,13 +200,12 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
         "trigger_event": trigger_event,
         "control_id": control_id,
         "patient_id": patient_id,
-        "folder": None,
-        "routed_path": None,
         "ack_code": ack_code,
         "error_text": error_text,
         "sender_ip": sender_ip,
-        "facility_ip": facility,
+        "version": version,
     }
+
 
 # ------------------------------------------------------------
 # BACKWARD COMPATIBILITY: original API

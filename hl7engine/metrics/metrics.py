@@ -1,7 +1,15 @@
-# hl7engine/metrics/metrics.py
+# metrics/metrics.py
 
 import threading
 from collections import defaultdict
+
+def _label_key(labels):
+    """
+    Convert a dict of labels into a stable, hashable key.
+    """
+    if not labels:
+        return frozenset()
+    return frozenset(sorted(labels.items()))
 
 class Metrics:
     def __init__(self):
@@ -10,17 +18,20 @@ class Metrics:
         self.gauges = defaultdict(float)
         self.histograms = defaultdict(list)
 
-    def inc(self, name, amount=1):
+    def inc(self, name, amount=1, labels=None):
+        key = (name, _label_key(labels))
         with self._lock:
-            self.counters[name] += amount
+            self.counters[key] += amount
 
-    def set(self, name, value):
+    def set(self, name, value, labels=None):
+        key = (name, _label_key(labels))
         with self._lock:
-            self.gauges[name] = value
+            self.gauges[key] = value
 
-    def observe(self, name, value):
+    def observe(self, name, value, labels=None):
+        key = (name, _label_key(labels))
         with self._lock:
-            self.histograms[name].append(value)
+            self.histograms[key].append(value)
 
     def snapshot(self):
         with self._lock:

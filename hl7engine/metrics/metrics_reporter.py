@@ -11,8 +11,8 @@ def start_metrics_reporter(interval=1.0):
             snap = metrics.snapshot()
             logger.info({
                 "event": "metrics",
-                "counters": snap["counters"],
-                "gauges": snap["gauges"],
+                "counters": {str(k): v for k, v in snap["counters"].items()},
+                "gauges": {str(k): v for k, v in snap["gauges"].items()},
             })
             time.sleep(interval)
 

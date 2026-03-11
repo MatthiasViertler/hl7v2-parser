@@ -1,51 +1,49 @@
-# json_logger.py
+# hl7engine/utils/json_logger.py
+
+# 2026 Mar 11:  Structured stdout logs: timestamp, level, message, merged event fields
+#               JSONL logs are safe + consistent
+#               Logging failures are observable (hl7_sys_logging_errors_total)
+#               No high-cardinality labels
+#               Ready for future enhancements (log rotatin, log shipping, correlation IDs, trace IDs)
+
 import logging
 import json
 import sys
 import datetime
 import os
 
+from hl7engine.metrics.metrics import metrics
+
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
+
 # ------------------------------------------------------------
-# NEW: module-level logger for stdout (used by metrics, server)
+# STRUCTURED STDOUT LOGGER
 # ------------------------------------------------------------
 logger = logging.getLogger("hl7engine")
 logger.setLevel(logging.INFO)
 
-# Avoid adding multiple handlers if module is imported repeatedly
+# Avoid duplicate handlers if module is imported multiple times
 if not logger.handlers:
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(message)s'))
-    logger.addHandler(handler)
 
+    # Structured JSON for stdout
+    class JsonFormatter(logging.Formatter):
+        def format(self, record):
+            base = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "level": record.levelname,
+                "message": record.getMessage(),
+            }
+            # If the message is already a dict, merge it
+            try:
+                msg_obj = json.loads(record.getMessage())
+                if isinstance(msg_obj, dict):
+                    base.update(msg_obj)
+            except Exception:
+                pass
+            return json.dumps(base, ensure_ascii=False)
 
-# ------------------------------------------------------------
-# EXISTING: JSONL file logger (unchanged)
-# ------------------------------------------------------------
-def log_event(event: dict, filename="events.jsonl"):
-    """
-    Append a structured JSON log entry to a .jsonl file.
-    Each line is one JSON object.
-    """
-    event["timestamp"] = datetime.datetime.now().isoformat()
-
-    path = os.path.join(LOG_DIR, filename)
-    with open(path, "a") as f:
-        f.write(json.dumps(event, ensure_ascii=False) + "\n")
-
-
-def log_message_json(raw_hl7, msg_type, control_id):
-    os.makedirs("logs/messages", exist_ok=True)
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-
-    entry = {
-        "timestamp": datetime.datetime.now().isoformat(),
-        "raw_hl7": raw_hl7,
-        "message_type": msg_type,
-        "control_id": control_id
-    }
-
-    with open(f"logs/messages/msg_{ts}.json", "w") as f:
-        json.dump(entry, f, indent=2)
+    handler.setFormatter(JsonFormatter())
+   

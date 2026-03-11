@@ -13,31 +13,42 @@ def _quantiles(values, quantiles):
         out[q] = vs[idx]
     return out
 
+def _format_labels(label_set):
+    if not label_set:
+        return ""
+    parts = [f'{k}="{v}"' for k, v in sorted(label_set)]
+    return "{" + ",".join(parts) + "}"
+
 def metrics_to_prometheus() -> str:
-    print("EXPORTER METRICS ID:", id(metrics))
     snap = metrics.snapshot()
     lines = []
 
     # Counters
-    for name, value in snap["counters"].items():
+    for (name, label_set), value in snap["counters"].items():
         prom_name = f"hl7_{name}"
+        labels = _format_labels(label_set)
         lines.append(f"# TYPE {prom_name} counter")
-        lines.append(f"{prom_name} {int(value)}")
+        lines.append(f"{prom_name}{labels} {int(value)}")
 
     # Gauges
-    for name, value in snap["gauges"].items():
+    for (name, label_set), value in snap["gauges"].items():
         prom_name = f"hl7_{name}"
+        labels = _format_labels(label_set)
         lines.append(f"# TYPE {prom_name} gauge")
-        lines.append(f"{prom_name} {float(value)}")
+        lines.append(f"{prom_name}{labels} {float(value)}")
 
     # Histograms → export p95/p99 as gauges
-    for name, values in snap["histograms"].items():
-        prom_p95 = f"hl7_{name}_p95"
-        prom_p99 = f"hl7_{name}_p99"
+    for (name, label_set), values in snap["histograms"].items():
         qs = _quantiles(values, [0.95, 0.99])
+
+        prom_p95 = f"hl7_{name}_p95_seconds"
+        prom_p99 = f"hl7_{name}_p99_seconds"
+        labels = _format_labels(label_set)
+
         lines.append(f"# TYPE {prom_p95} gauge")
-        lines.append(f"{prom_p95} {qs[0.95]}")
+        lines.append(f"{prom_p95}{labels} {qs[0.95]}")
+
         lines.append(f"# TYPE {prom_p99} gauge")
-        lines.append(f"{prom_p99} {qs[0.99]}")
+        lines.append(f"{prom_p99}{labels} {qs[0.99]}")
 
     return "\n".join(lines) + "\n"

@@ -1,13 +1,64 @@
 
 help:
-	@echo "Available commands:"
-	@grep -hE '^[a-zA-Z0-9_-]+:.*##' makefiles/*.mk | \
-		awk 'BEGIN {FS = ":.*##"}; {printf "  %-20s %s\n", $$1, $$2}'
+	@echo "$(GREEN)Available commands:$(RESET)"
+	@echo
+	@for file in $(MAKEFILE_DIR)/makefiles/*.mk; do \
+		group=$$(basename $$file .mk | tr '[:lower:]' '[:upper:]'); \
+		echo "$(YELLOW)$${group}$(RESET)"; \
+		grep -hE '^[a-zA-Z0-9_-]+:.*##' $$file | \
+			awk 'BEGIN {FS = ":.*##"}; {printf "  %-30s %s\n", $$1, $$2}'; \
+		echo ""; \
+	done
+
 
 # ---------------------------------------------------------
 # HELP
 # ---------------------------------------------------------
-# help:
+# Available commands:
+#   bench-max             Max throughput benchmark
+#   bench-conn            Connection stress benchmark
+#   bench-sweep           Sweep benchmark
+#   bench-visualize       Visualize benchmark results
+#   run-benchmark-max-throughput-against-server  Max throughput vs temp server
+#   run-benchmark-sweep-against-server  Sweep vs temp server
+#   run-benchmark         Generic benchmark runner
+#   hl7-start             Start HL7 MLLP engine
+#   hl7-stop              Stop HL7 MLLP engine
+#   hl7-server-status     Simple Status for HL7 MLLP engine
+#   hl7-server-status-full  Complete Status for HL7 MLLP engine
+#   hl7-start-fg          Start HL7 MLLP server in foreground
+#   hl7-start-prom-fg     Start HL7 MLLP server with prometheus in foreground
+#   hl7-kill-own-server   Kill own running HL7 MLLP server
+#   hl7-kill-server       Kill any running HL7 MLLP server (based on binary)
+#   monitoring-watch      Watch Monitoring Server Stack Status with 1sec Refresh Rate
+#   monitoring-status     Monitoring Server Stack Detailled Status
+#   monitoring-summary    Monitoring Server Stack Status Summary
+#   monitoring-health     Monitoring Server Stack Health Summary
+#   monitoring-status-compact  1-line full Server Stack Status (ideal for CLI)
+#   monitoring-logs       (Deprecated) Show Prometheus and Grafana log files (50 lines)
+#   stack-start           Start the complete server stack
+#   stack-stop            Stop the complete server stack
+#   stack-restart         Restart the complete server stack
+#   all-server-status     (Deprecated) List Server Status for some servers
+#   seed-db               Restore seed HL7 message SQLite DB
+#   clean-db              Remove HL7 message SQLite DB
+#   clean-routed          Clean routed/ folder
+#   clean-results         Clean benchmark result JSON files
+#   clear-persistence     Clean DB, routed/, and results/
+#   prometheus-sync-rules  Copy rule files into /opt/prometheus (requires sudo)
+#   prometheus-validate   Validate Prometheus config + rules
+#   prometheus-reload     Reload Prometheus via SIGHUP
+#   prometheus-full-reload  Full workflow: sync → validate → reload
+#   prometheus-install-rules  First-time install of rule files (creates missing files)
+#   kill-prometheus-all   Kill any running Prometheus server (based on binary)
+#   kill-prometheus       Kill Prometheus server (based on PID)
+#   test                  Run full test suite
+#   test-file             Run tests for a specific file: make test-file FILE=...
+#   test-name             Run tests matching a name: make test-name NAME=...
+#   benchmark-tests       Run pytest with duration reporting
+#   coverage              Run coverage report
+
+# help: // OLD
 # 	@echo "Available commands:"
 # 	@echo ""
 # 	@echo "  make install           - Install project in editable mode"

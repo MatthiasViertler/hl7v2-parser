@@ -1,3 +1,4 @@
+# makefiles/orchestration.mk
 
 # ---------------------------------------------------------
 # Full Stack Targets (HL7 Engine, REST API, UI, Prometheus, Grafana)
@@ -16,20 +17,3 @@ stack-restart: ## Restart the complete server stack
 	@$(MAKE) --no-print-directory stack-stop
 	@sleep 1
 	@$(MAKE) --no-print-directory stack-start
-
-# ---------------------------------------------------------
-# ALL SERVER Targets
-# ---------------------------------------------------------
-
-all-server-status: ## (Deprecated) List Server Status for some servers
-#	@echo "=== HL7 Engine Status ==="
-	@$(MAKE) --no-print-directory hl7-server-status-full
-
-#	@echo "\n=== REST API Status ==="
-	@$(MAKE) --no-print-directory rest-api-status-full
-
-#	@echo "\n=== Prometheus Status ==="
-	@$(MAKE) --no-print-directory prometheus-status-full
-
-#	@echo "\n=== Grafana Status ==="
-	@$(MAKE) --no-print-directory grafana-status-full

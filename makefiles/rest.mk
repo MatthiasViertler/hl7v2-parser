@@ -1,10 +1,13 @@
+#makefiles/rest.mk
 
 # ---------------------------------------------------------
 # REST API SERVER Targets
 # ---------------------------------------------------------
 
-#rest-api-bg:
-rest-start:
+rest-start-fg: ## Start REST API in foreground
+	uvicorn hl7engine.api:app --host 0.0.0.0 --port $(REST_PORT)
+
+rest-start: # Start REST API server on port REST_PORT
 	@echo "Starting REST API in background..."
 	@mkdir -p $(shell pwd)/monitoring/logs
 	@nohup uvicorn hl7engine.api:app \
@@ -15,7 +18,7 @@ rest-start:
 	@echo $$! > "$(REST_PID)"
 	@echo "REST API started (PID: $$(cat $(REST_PID))). Logs: $(REST_LOG)"
 
-rest-stop:
+rest-stop: ## Stop REST API server
 	@PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
 	if [ -n "$$PID" ]; then \
 		echo "Stopping REST API (PID $$PID)"; \
@@ -24,11 +27,11 @@ rest-stop:
 		echo "REST API not running."; \
 	fi
 
-rest-api-status:
+rest-api-status: ## (DEPRECATED) Show a short status report of REST API
 	@echo "\n=== REST API Status ==="
 	@ps aux | grep "uvicorn hl7engine.api" | grep -v grep || echo "No REST API server running."
 
-rest-api-status-full:
+rest-api-status-full: ## (DEPRECATED) Show a full status report of REST API
 	@echo "=== REST API Status ==="
 	@PID=$$(pgrep -f "[u]vicorn hl7engine.api"); \
 	if [ -n "$$PID" ]; then \
@@ -39,16 +42,4 @@ rest-api-status-full:
 		printf "%-20s %-10s %-10s %-10s %-10s\n" "REST API" "$$PID" "$$UPTIME" "$$PORT" "$$HEALTH"; \
 	else \
 		echo "REST API is NOT running."; \
-	fi
-
-rest-api-kill:
-	@echo "Stopping REST API..."
-	@if [ -f "$(REST_PID)" ]; then \
-		kill `cat $(REST_PID)` 2>/dev/null || true; \
-		rm -f $(REST_PID); \
-		echo "REST API stopped."; \
-	else \
-		echo "No PID file found. Trying process scan..."; \
-		PIDS=`pgrep -f "uvicorn hl7engine.api"`; \
-		if [ -n "$$PIDS" ]; then kill $$PIDS; echo "REST API stopped."; else echo "REST API was not running."; fi; \
 	fi

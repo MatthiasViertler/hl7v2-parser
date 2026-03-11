@@ -1,3 +1,5 @@
+# makefiles/monitoring.mk
+
 monitoring-watch: ## Watch Monitoring Server Stack Status with 1sec Refresh Rate
 	@while true; do \
 		clear; \
@@ -139,29 +141,6 @@ monitoring-status-compact: ## 1-line full Server Stack Status (ideal for CLI)
 	fi; \
 	printf "%bHL7:%s REST:%s HTML:%s PROM:%s GRAF:%s → %s%b\n" \
 		"$$COLOR" "$$HL7" "$$REST" "$$HTML" "$$PROM" "$$GRAF" "$$STATUS" "$(RESET)"
-
-
-# ---------------------------------------------------------
-# Start all servers (MLLP, Grafana + Prometheus) in background
-# This allows executing test bench, benchmarks, etc. afterwards
-# ---------------------------------------------------------
-# monitoring-stack:
-# #	make run-server-prom-bg
-# 	make hl7-start
-# 	make prometheus-bg
-# 	make grafana-bg
-
-# ---------------------------------------------------------
-# Kill MLLP, Grafana + Prometheus servers (based on PID)
-# ---------------------------------------------------------
-# kill-monitoring:
-# 	make prometheus-kill
-# 	make grafana-kill
-# 	make kill-own-server
-
-# monitoring-stack-restart:
-# 	make kill-monitoring
-# 	make monitoring-stack
 
 monitoring-logs: ## (Deprecated) Show Prometheus and Grafana log files (50 lines)
 	@echo "=== Prometheus Logs ==="

@@ -15,9 +15,10 @@ This project is designed for experimentation, performance tuning, and deep analy
 - **Config‑driven routing** (`routes.yaml`)
 - **Schema‑based validation** (`validation.yaml`)
 - **Worker pool + message queue**
-- **Prometheus metrics endpoint** (port 8010)
+- **REST API for HL7 engine (port 8000)
+- **HL7 engine metrics endpoint** (port 8010)
 - **Benchmarking suite** (throughput, latency, concurrency sweep)
-- **UI viewer** for routed HL7 messages (port 8000)
+- **UI viewer** for routed HL7 messages (port 8080)
 - **VS Code debug configurations**
 - **Zero‑downtime monitoring with Grafana**
 
@@ -212,8 +213,9 @@ python -m hl7engine.mllp_server --prometheus
 Component          |      Port      |    Description
 -----------------------------------------------------------
 MLLP Server        |      2575      |  HL7v2 MLLP Listener
-Prometheus Metrics |      8010      |  /metrics endpoint
-UI Viewer          |      8000      |  Static HTML viewer
+REST API Server    |      8000      |  HL7 Engine REST APIs
+HL7 Engine Metrics |      8010      |  /metrics endpoint
+UI Viewer          |      8080      |  Static HTML viewer
 Prometheus UI      |      9090      |  Prometheus dashboard
 -----------------------------------------------------------
 

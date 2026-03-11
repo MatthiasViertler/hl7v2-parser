@@ -1,3 +1,5 @@
+# makefiles/utils.mk
+
 # Colors
 GREEN  := \\033[0;32m
 RED    := \\033[0;31m
@@ -48,8 +50,9 @@ PROM_CONF := $(PROM_HOME)/prometheus.yml
 PROM_LOG := $(shell pwd)/monitoring/logs/prometheus.log
 PROM_PID := $(shell pwd)/monitoring/prometheus.pid
 
+# HL7 engine metrics exporter @ port 8010, scraped by Prometheus:
 PROM_METRICS_URL := http://localhost:8010/metrics
-# Rule files in our repo
+# (DEPRECATED) Rule files in our repo
 PROM_RULES_SRC := $(shell pwd)/monitoring
 PROM_RULES := recording_rules.yml alert_rules.yml prometheus.yml
 
@@ -105,6 +108,3 @@ endef
 define check_http
 	@curl -s -o /dev/null -w "%{http_code}" $(1)
 endef
-
-color-test:
-	@printf "%b\n" "$(GREEN)Hello$(RESET)"

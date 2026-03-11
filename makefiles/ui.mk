@@ -1,11 +1,12 @@
+# makefiles/ui.mk
 
-ui-start:
-	@echo "Starting UI server on port $(HTML_PORT)..."
+ui-start: ## Start HTML viewer for REST API on port HTML_PORT
+	@echo "Starting UI server at http://localhost:$(HTML_PORT)..."
 	cd ui && nohup python3 -m http.server $(HTML_PORT) \
 		>/dev/null 2>&1 &
 	@echo "UI server started."
 
-ui-stop:
+ui-stop: ## Stop HTML viewer
 	@PID=$$(pgrep -f "[p]ython.*http.server $(HTML_PORT)"); \
 	if [ -n "$$PID" ]; then \
 		echo "Stopping UI server (PID $$PID)"; \
@@ -14,10 +15,7 @@ ui-stop:
 		echo "UI server not running."; \
 	fi
 
-run-ui:
-	@echo "Serving UI at http://localhost:8080"
-	cd ui && python3 -m http.server 8080 >/dev/null 2>&1
+ui-start-fg: ## (DEPRECATED) Start HTML viewer in foreground
+	@echo "Serving UI at http://localhost:$(HTML_PORT)"
+	cd ui && python3 -m http.server $(HTML_PORT) >/dev/null 2>&1
 
-run-ui-bg:
-	@echo "Serving UI at http://localhost:8080"
-	cd ui && python3 -m http.server 8080 >/dev/null 2>&1 &

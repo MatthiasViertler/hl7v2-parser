@@ -1,34 +1,13 @@
-
+# makefiles/grafana
 
 # -----------------------------------------------------------
 #   GRAFANA TARGETS
 # -----------------------------------------------------------
 
-# Start Grafana Server in foreground.
-# Grafana usually needs sudo because it binds to system directories.
-# grafana:
-# #	make grafana-disable-systemd
-# 	@echo "Starting Grafana..."
-# 	@$(GRAFANA_DEV_BIN) server --homepath=$(GRAFANA_DEV_HOME) --config=$(GRAFANA_DEV_CONF) > $(GRAFANA_LOG) 2>&1 &
-# 	@echo $$! > grafana.pid
-# 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
-
-grafana:
+grafana: ## (DEPRECATED) Start Grafana in foreground
 	$(GRAFANA_BIN) server --homepath $(GRAFANA_HOME) --config $(GRAFANA_CONF)
 
-# Start Grafana Server in background.
-# Grafana usually needs sudo because it binds to system directories.
-grafana-bg:
-	@echo "Starting Grafana in background..."
-	@mkdir -p $(GRAFANA_HOME)/logs
-	@nohup $(GRAFANA_BIN) server \
-	    --homepath $(GRAFANA_HOME) \
-	    --config $(GRAFANA_CONF) \
-	    > $(GRAFANA_LOG) 2>&1 &
-	@echo $$! > grafana.pid
-	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
-
-grafana-start:
+grafana-start: ## Start Grafana in background
 	@echo "Starting Grafana in background..."
 	@mkdir -p $(GRAFANA_HOME)/logs
 	@sh -c ' \
@@ -41,7 +20,7 @@ grafana-start:
 	@echo "Grafana started (PID: $$(cat grafana.pid)). Logs: $(GRAFANA_LOG)"
 #	@grafana server >/dev/null 2>&1 &
 
-grafana-stop:
+grafana-stop: ## Stop Grafana
 	@PID=$$(pgrep -f "[g]rafana server"); \
 	if [ -n "$$PID" ]; then \
 		echo "Stopping Grafana (PID $$PID)"; \
@@ -50,11 +29,11 @@ grafana-stop:
 		echo "Grafana not running."; \
 	fi
 
-grafana-status:
+grafana-status: ## (DEPRECATED) Short status report for Grafana
 	@echo "=== Grafana Status ==="
 	@ps aux | grep "[g]rafana server" | grep -v grep || echo "Grafana not running."
 
-grafana-status-full:
+grafana-status-full: ## (DEPRECATED) Full status report for Grafana
 	@echo "=== Grafana Status ==="
 	@PID=$$(pgrep -f "[g]rafana server"); \
 	if [ -n "$$PID" ]; then \
@@ -67,26 +46,7 @@ grafana-status-full:
 		echo "Grafana is NOT running."; \
 	fi
 
-grafana-restart: grafana-kill grafana-bg
-	@echo "Grafana restarted."
-
-grafana-pid:
-	@ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'
-
-grafana-kill:
-	@echo "Stopping Grafana..."
-	@PIDS=`ps -eo pid,cmd | grep "[g]rafana-server" | awk '{print $$1}'`; \
-	if [ -n "$$PIDS" ]; then \
-		kill $$PIDS; \
-		echo "Grafana stopped."; \
-	else \
-		echo "Grafana was not running."; \
-	fi
-
-restart-grafana:grafana-kill grafana-bg
-	@echo "Grafana restarted."
-
-grafana-clear-dashboard:
+grafana-clear-dashboard: ## Reset Grafana dashboards (for maintenance)
 	@if [ -z "$(UID)" ]; then \
 		echo "Usage: make grafana-clear-dashboard UID=<dashboard_uid>"; \
 		echo " e.g.: make grafana-clear-dashboard UID=hl7-mllp-server"; \
@@ -97,27 +57,15 @@ grafana-clear-dashboard:
 	@echo "Dashboard removed. Restart Grafana to re-import."
 
 
-grafana-sync-dashboards:
+grafana-sync-dashboards: ## Copy Grafana dashboards into provisioning
 	@echo "Copying Grafana dashboards into $(GRAFANA_PROVISIONING)..."
 	@mkdir -p $(GRAFANA_PROVISIONING)
 	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_PROVISIONING)/
 	@echo "Dashboards synced. Restart Grafana to apply."
 
-# 	@echo "Copying Grafana dashboards into $(GRAFANA_DASH_DST)..."
-# 	@mkdir -p $(GRAFANA_DASH_DST)
-# 	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_DASH_DST)/ 
-#   or
-#	@cp monitoring/dashboards/*.json $(GRAFANA_PROVISIONING)/
-# 	@cp $(GRAFANA_PROVISIONING_FILE_SRC) $(GRAFANA_DASH_DST)/
-# 	@echo "Dashboards synced."
-
-grafana-disable-systemd:
+grafana-disable-systemd: ## (DEPRECATED) Disable systemd Grafana service (if installed via apt)
 	@echo "Disabling Grafana systemd services..."
 	@sudo systemctl disable grafana-server
 	@sleep 1
 	@sudo systemctl stop grafana-server
 	@echo "Grafana systemd services disabled."
-
-# Clear Grafana DB via SQLite
-# sqlite3 ~/grafana/data/grafana.db \
-#   "delete from dashboard where uid='hl7-mllp-server';"

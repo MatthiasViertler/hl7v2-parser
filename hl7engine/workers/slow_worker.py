@@ -11,7 +11,8 @@
             # - proc_stage_errors_total{stage="routing"}
             # - proc_stage_errors_total{stage="file_write"}
             # - proc_stage_errors_total{stage="db_insert"}
-            #  improve robustness of routing + file writing + DB insert
+            #  improve robustness of routing + file writing + DB insert,
+            #  no high-cardinality labels, clean + predictable slow-path
 
 import os
 import time

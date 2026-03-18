@@ -1,0 +1,210 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "gauge",
+      "name": "Gauge",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
+  "uid": "hl7-all-systems",
+  "title": "All_Systems",
+  "tags": ["hl7", "overview", "all-systems"],
+  "timezone": "",
+  "schemaVersion": 39,
+  "version": 1,
+  "style": "dark",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Throughput (1m rate)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(hl7_mllp_messages_received_total[1m])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Global Error Rate (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(hl7_mllp_errors_total[5m]) + increase(hl7_parser_parse_errors_total[5m]) + increase(hl7_processing_errors_total[5m]) + increase(hl7_router_errors_total[5m]) + increase(hl7_store_errors_total[5m]) + increase(hl7_export_errors_total[5m])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "ACK Success Rate (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(hl7_ack_generated_total{code=\"AA\"}[5m])) / sum(rate(hl7_ack_generated_total[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.95 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Subsystem Latency Summary (p95)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "hl7_mllp_latency_p95_seconds", "legendFormat": "MLLP" },
+        { "refId": "B", "expr": "hl7_parser_latency_p95_seconds", "legendFormat": "Parser" },
+        { "refId": "C", "expr": "hl7_processing_latency_p95_seconds", "legendFormat": "Processing" },
+        { "refId": "D", "expr": "hl7_router_latency_p95_seconds", "legendFormat": "Router" },
+        { "refId": "E", "expr": "hl7_store_write_latency_p95_seconds", "legendFormat": "Storage" },
+        { "refId": "F", "expr": "hl7_export_latency_p95_seconds", "legendFormat": "Exporter" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "decimals": 3 }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Queue Depth Summary",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "hl7_processing_queue_depth", "legendFormat": "Processing" },
+        { "refId": "B", "expr": "hl7_store_queue_depth", "legendFormat": "Storage" },
+        { "refId": "C", "expr": "hl7_export_queue_depth", "legendFormat": "Exporter" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Subsystem Error Breakdown (5m)",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "refId": "A", "expr": "increase(hl7_mllp_errors_total[5m])", "legendFormat": "MLLP" },
+        { "refId": "B", "expr": "increase(hl7_parser_parse_errors_total[5m])", "legendFormat": "Parser" },
+        { "refId": "C", "expr": "increase(hl7_processing_errors_total[5m])", "legendFormat": "Processing" },
+        { "refId": "D", "expr": "increase(hl7_router_errors_total[5m])", "legendFormat": "Router" },
+        { "refId": "E", "expr": "increase(hl7_store_errors_total[5m])", "legendFormat": "Storage" },
+        { "refId": "F", "expr": "increase(hl7_export_errors_total[5m])", "legendFormat": "Exporter" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" }
+      }
+    }
+  ],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  }
+}

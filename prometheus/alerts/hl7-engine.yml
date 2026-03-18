@@ -1,0 +1,176 @@
+groups:
+  - name: hl7-engine-alerts
+    interval: 30s
+    rules:
+
+    # ---------------------------------------------------------
+    # 1. MLLP Subsystem Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_MLLP_ConnectionErrors
+      expr: increase(hl7_mllp_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "MLLP connection errors detected"
+        description: "The HL7 MLLP listener is reporting connection or framing errors."
+
+    - alert: HL7_MLLP_StalledInput
+      expr: rate(hl7_mllp_messages_received_total[5m]) == 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "No HL7 messages received"
+        description: "The engine has not received any HL7 messages for 5 minutes."
+
+    # ---------------------------------------------------------
+    # 2. Parser Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_Parser_Errors
+      expr: increase(hl7_parser_parse_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "HL7 parser errors detected"
+        description: "Messages are failing to parse. Check HL7 formatting or upstream systems."
+
+    - alert: HL7_Parser_LatencyHigh
+      expr: hl7_parser_latency_p95_seconds > 0.5
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Parser latency elevated"
+        description: "p95 parser latency is above 0.5 seconds."
+
+    # ---------------------------------------------------------
+    # 3. ACK Subsystem Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_ACK_SuccessRateLow
+      expr: (sum(rate(hl7_ack_generated_total{code="AA"}[5m])) / sum(rate(hl7_ack_generated_total[5m]))) < 0.95
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "ACK success rate below 95%"
+        description: "Downstream systems may be rejecting messages or failing to respond."
+
+    - alert: HL7_ACK_RTT_High
+      expr: hl7_ack_rtt_p95_seconds > 1
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "ACK round-trip time elevated"
+        description: "ACK latency is above 1 second."
+
+    # ---------------------------------------------------------
+    # 4. Router Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_Router_Errors
+      expr: increase(hl7_router_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Routing errors detected"
+        description: "Messages are failing to route to their destinations."
+
+    - alert: HL7_Router_DestinationFailures
+      expr: increase(hl7_router_destination_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Destination-specific routing failures"
+        description: "One or more destinations are rejecting or failing to accept messages."
+
+    # ---------------------------------------------------------
+    # 5. Processing Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_Processing_Errors
+      expr: increase(hl7_processing_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Processing errors detected"
+        description: "Internal processing stages are failing."
+
+    - alert: HL7_Processing_QueueHigh
+      expr: hl7_processing_queue_depth > 50
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Processing queue depth high"
+        description: "Messages are backing up in the processing pipeline."
+
+    # ---------------------------------------------------------
+    # 6. Storage Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_Storage_Errors
+      expr: increase(hl7_store_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Storage write errors detected"
+        description: "Messages are failing to persist to storage."
+
+    - alert: HL7_Storage_LatencyHigh
+      expr: hl7_store_write_latency_p95_seconds > 0.5
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Storage write latency elevated"
+        description: "Database writes are slower than expected."
+
+    - alert: HL7_Storage_QueueHigh
+      expr: hl7_store_queue_depth > 100
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Storage queue depth high"
+        description: "Messages are backing up waiting to be written to storage."
+
+    # ---------------------------------------------------------
+    # 7. Exporter Alerts
+    # ---------------------------------------------------------
+
+    - alert: HL7_Exporter_Errors
+      expr: increase(hl7_export_errors_total[5m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Exporter errors detected"
+        description: "Messages are failing to export to downstream systems."
+
+    - alert: HL7_Exporter_RetriesHigh
+      expr: increase(hl7_export_retries_total[5m]) > 5
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Exporter retries elevated"
+        description: "Downstream systems may be unreachable or rejecting messages."
+
+    - alert: HL7_Exporter_QueueHigh
+      expr: hl7_export_queue_depth > 100
+      for: 3m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Exporter queue depth high"
+        description: "Messages are backing up waiting to be exported."

@@ -41,9 +41,9 @@
       "version": "1.0.0"
     }
   ],
-  "uid": "hl7-mllp",
-  "title": "01_MLLP",
-  "tags": ["hl7", "MLLP"],
+  "uid": "hl7-ack",
+  "title": "03_ACK",
+  "tags": ["hl7", "ack"],
   "timezone": "",
   "schemaVersion": 39,
   "version": 1,
@@ -55,19 +55,20 @@
     {
       "id": 1,
       "type": "stat",
-      "title": "Active MLLP Connections",
+      "title": "ACKs Sent (1m rate)",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
-        { "refId": "A", "expr": "sum(hl7_mllp_connections_active)" }
+        { "refId": "A", "expr": "rate(hl7_ack_sent_total[1m])" }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "unit": "ops",
+          "decimals": 2,
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
+              { "color": "red", "value": 0 },
               { "color": "green", "value": 1 }
             ]
           }
@@ -84,41 +85,70 @@
     },
     {
       "id": 2,
-      "type": "timeseries",
-      "title": "Bytes Received (per second)",
-      "gridPos": { "h": 6, "w": 12, "x": 6, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
+      "type": "gauge",
+      "title": "ACK Success Rate (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(hl7_mllp_bytes_received_total[1m])",
-          "legendFormat": "bytes/s",
-          "interval": ""
+          "expr": "sum(rate(hl7_ack_generated_total{code=\"AA\"}[5m])) / sum(rate(hl7_ack_generated_total[5m]))"
         }
       ],
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
-      },
       "fieldConfig": {
-        "defaults": { "unit": "Bps" },
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.95 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        },
         "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "vertical",
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
       }
     },
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Bytes Sent (per second)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
+      "title": "ACK Round-Trip Time p95/p99",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
-        { "refId": "A", "expr": "rate(hl7_mllp_bytes_sent_total[1m])", "legendFormat": "bytes/s" }
+        {
+          "refId": "A",
+          "expr": "hl7_ack_rtt_p95_seconds",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "B",
+          "expr": "hl7_ack_rtt_p99_seconds",
+          "legendFormat": "p99"
+        }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "Bps" },
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 0.2 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
         "overrides": []
       },
       "options": {
@@ -129,11 +159,11 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Frame Errors (5m)",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "title": "ACK Generation Errors (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
-        { "refId": "A", "expr": "increase(hl7_mllp_frame_errors_total[5m])" }
+        { "refId": "A", "expr": "increase(hl7_ack_generation_errors_total[5m])" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -159,14 +189,18 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Connection Errors (5m)",
+      "title": "ACK Codes Breakdown (per minute)",
       "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
-        { "refId": "A", "expr": "increase(hl7_mllp_connection_errors_total[5m])", "legendFormat": "errors" }
+        {
+          "refId": "A",
+          "expr": "rate(hl7_ack_generated_total[1m])",
+          "legendFormat": "{{code}}"
+        }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "none" },
+        "defaults": { "unit": "ops" },
         "overrides": []
       },
       "options": {

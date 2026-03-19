@@ -1,0 +1,1 @@
+Grafana logs are inside $(GRAFANA_HOME)/logs/grafana.log or whatever's defined as 'GRAFANA_LOG' inside utils.mk

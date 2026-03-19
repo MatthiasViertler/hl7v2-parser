@@ -42,19 +42,31 @@ REST_PID := $(shell pwd)/monitoring/restapi.pid
 # PROM_BIN := $(PROM_HOME)/prometheus
 # PROM_CONF := $(PROM_HOME)/prometheus.yml
 # PROM_LOG := $(PROM_HOME)/prometheus.log
-# === Local prometheus Install ===
+# === Local (DEV) prometheus Install ===
 PROM_HOME := $(HOME)/prometheus
 PROM_BIN := $(PROM_HOME)/prometheus
-PROM_CONF := $(PROM_HOME)/prometheus.yml
 
-PROM_LOG := $(shell pwd)/monitoring/logs/prometheus.log
-PROM_PID := $(shell pwd)/monitoring/prometheus.pid
+# Destination paths inside Prometheus install
+PROM_CONF_DST := $(PROM_HOME)/prometheus.yml
+PROM_ALERTS_DST := $(PROM_HOME)/alerts
+PROM_RECORDING_DST := $(PROM_ALERTS_DST)/recording_rules.yml
+
+# Source files in repo
+PROM_CONF_SRC := $(shell pwd)/prometheus/prometheus.yml
+PROM_ALERTS_SRC := $(shell pwd)/prometheus/alerts/hl7-engine.yml
+PROM_RECORDING_SRC := $(shell pwd)/prometheus/alerts/recording_rules.yml
+# (DEPRECATED) Rule files in our repo
+#PROM_RULES_SRC := $(shell pwd)/prometheus
+#PROM_RULES := alerts/recording_rules.yml alerts/hl7-engine.yml prometheus.yml
+
+# Logs + PID
+PROM_LOG := $(PROM_HOME)/logs/prometheus.log
+PROM_PID := $(PROM_HOME)/logs/prometheus.pid
+#PROM_LOG := $(shell pwd)/monitoring/logs/prometheus.log
+#PROM_PID := $(shell pwd)/monitoring/prometheus.pid
 
 # HL7 engine metrics exporter @ port 8010, scraped by Prometheus:
 PROM_METRICS_URL := http://localhost:8010/metrics
-# (DEPRECATED) Rule files in our repo
-PROM_RULES_SRC := $(shell pwd)/monitoring
-PROM_RULES := recording_rules.yml alert_rules.yml prometheus.yml
 
 # ---------------------------------------------------------
 # GRAFANA (DEVELOPMENT SETTINGS)
@@ -73,9 +85,16 @@ GRAFANA_BIN := $(GRAFANA_HOME)/bin/grafana
 GRAFANA_CONF := $(GRAFANA_HOME)/conf/defaults.ini
 GRAFANA_DB := $(GRAFANA_HOME)/data/grafana.db
 GRAFANA_LOG := $(GRAFANA_HOME)/logs/grafana.log
-GRAFANA_PROVISIONING := $(GRAFANA_HOME)/conf/provisioning/dashboards
-GRAFANA_DASH_DST := $(GRAFANA_HOME)/conf/provisioning/dashboards
-GRAFANA_DASH_SRC := $(shell pwd)/monitoring/dashboards
+
+# Provisioning directories inside Grafana
+GRAFANA_PROVISIONING_DST := $(GRAFANA_HOME)/conf/provisioning
+GRAFANA_DASH_DST := $(GRAFANA_PROVISIONING_DST)/dashboards
+GRAFANA_DATASOURCE_DST := $(GRAFANA_PROVISIONING_DST)/datasources
+
+# Source files in our repo
+GRAFANA_DASH_SRC := $(shell pwd)/grafana/hl7-engine
+GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/grafana/provisioning/dashboards/hl7-engine.yaml
+GRAFANA_DATASOURCE_FILE_SRC := $(shell pwd)/grafana/provisioning/datasources/prometheus.yaml
 
 
 # ---------------------------------------------------------

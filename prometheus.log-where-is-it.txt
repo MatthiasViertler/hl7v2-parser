@@ -1,0 +1,1 @@
+Prometheus logs are inside $(PROM_HOME)/logs/prometheus.log or whatever's defined as 'PROM_LOG' inside utils.mk

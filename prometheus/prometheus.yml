@@ -4,8 +4,8 @@ global:
 
 # Load alert rules from the same folder
 rule_files:
-  - "alert_rules.yml" # Prometheus resolves paths relative to the directory of the config file
-  - "recording_rules.yml"
+  # Prometheus resolves paths relative to the directory of the config file
+  - "alerts/*.yml"
 
 scrape_configs:
   # ---------------------------------------------------------

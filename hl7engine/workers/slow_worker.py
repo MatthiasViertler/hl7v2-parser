@@ -1,6 +1,6 @@
 # hl7engine/workers/slow_worker.py
 
-# 2026 Mar 11: Converted all latencies to seconds, added taxonomy-aligned metrics:
+# 2026 Mar 19: Converted all latencies to seconds, added taxonomy-aligned metrics:
             # - router_messages_routed_total{route="ADT"} (already emitted in router)
             # - store_write_operations_total
             # - store_write_latency_seconds
@@ -13,15 +13,15 @@
             # - proc_stage_errors_total{stage="db_insert"}
             #  improve robustness of routing + file writing + DB insert,
             #  no high-cardinality labels, clean + predictable slow-path
+            #  Reconstructed slow worker since it was lost in git (not saved in VS Code)
 
 import os
 import time
 
 from hl7engine.router import Router
 from hl7engine.persistence.db import insert_message
-from hl7engine.utils.json_logger import log_event
+from hl7engine.utils.json_logger import logger
 from hl7engine.utils.ack_utils import build_ack_simple
-
 from hl7engine.metrics.metrics import metrics
 
 router = Router("routes.yaml")
@@ -35,7 +35,7 @@ def slow_processing_phase(ctx: dict):
     SLOW PHASE:
     - routing
     - file writing
-    - logging
+    - structured logging
     - DB insert
 
     Runs AFTER ACK is already sent.
@@ -56,9 +56,9 @@ def slow_processing_phase(ctx: dict):
     folder = None
     routed_path = None
 
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     # ROUTING
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     routing_start = time.time()
 
     if msg is not None:
@@ -73,18 +73,17 @@ def slow_processing_phase(ctx: dict):
                 labels={"stage": "routing"},
             )
 
-        except Exception as e:
+        except Exception:
             metrics.inc(
                 "proc_stage_errors_total",
                 labels={"stage": "routing"},
             )
-            # Continue slow phase even if routing fails
             folder = None
             routed_path = None
 
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     # FILE WRITE
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     if routed_path:
         file_start = time.time()
         try:
@@ -109,13 +108,13 @@ def slow_processing_phase(ctx: dict):
                 labels={"stage": "file_write"},
             )
 
-    # ------------------------------------------------------------
-    # LOGGING
-    # ------------------------------------------------------------
-    log_event(
+    # --------------------------------------------------------
+    # STRUCTURED LOGGING (NO RAW HL7)
+    # --------------------------------------------------------
+    logger.info(
         {
+            "event": "slow_phase_completed",
             "sender": sender_ip,
-            "raw_hl7": raw_hl7_norm,
             "message_type": msg_type,
             "trigger_event": trigger_event,
             "control_id": control_id,
@@ -127,9 +126,9 @@ def slow_processing_phase(ctx: dict):
         }
     )
 
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     # DB INSERT
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     db_start = time.time()
     try:
         insert_message(
@@ -152,17 +151,15 @@ def slow_processing_phase(ctx: dict):
         )
 
     except Exception:
-        metrics.inc(
-            "store_write_errors_total",
-        )
+        metrics.inc("store_write_errors_total")
         metrics.inc(
             "proc_stage_errors_total",
             labels={"stage": "db_insert"},
         )
 
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     # TOTAL SLOW PHASE LATENCY
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     metrics.observe(
         "proc_stage_duration_seconds",
         time.time() - slow_start,

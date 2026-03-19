@@ -16,4 +16,4 @@ def test_prometheus_metrics_endpoint():
 
     # Basic sanity checks
     assert "hl7_messages_received" in body
-    assert "hl7_workers_busy" in body
+    assert "sys_threads_active" in body

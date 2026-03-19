@@ -56,12 +56,21 @@ grafana-clear-dashboard: ## Reset Grafana dashboards (for maintenance)
 	@sqlite3 "$(GRAFANA_DB)" "DELETE FROM dashboard WHERE uid='$(UID)';"
 	@echo "Dashboard removed. Restart Grafana to re-import."
 
+sync-provisioning-files: ## Sync Grafana dashboards + provisioning files
+	@echo "Syncing Grafana dashboards and provisioning files..."
+	@mkdir -p $(GRAFANA_DASH_DST)/hl7-engine
+	@mkdir -p $(GRAFANA_DATASOURCE_DST)
 
-grafana-sync-dashboards: ## Copy Grafana dashboards into provisioning
-	@echo "Copying Grafana dashboards into $(GRAFANA_PROVISIONING)..."
-	@mkdir -p $(GRAFANA_PROVISIONING)
-	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_PROVISIONING)/
-	@echo "Dashboards synced. Restart Grafana to apply."
+	# Copy dashboards
+	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_DASH_DST)/hl7-engine/
+
+	# Copy dashboard provisioning file
+	@cp $(GRAFANA_PROVISIONING_FILE_SRC) $(GRAFANA_DASH_DST)/
+
+	# Copy datasource provisioning file
+	@cp $(GRAFANA_DATASOURCE_FILE_SRC) $(GRAFANA_DATASOURCE_DST)/
+
+	@echo "Provisioning sync complete. Restart Grafana to apply changes."
 
 grafana-disable-systemd: ## (DEPRECATED) Disable systemd Grafana service (if installed via apt)
 	@echo "Disabling Grafana systemd services..."

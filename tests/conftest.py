@@ -131,6 +131,13 @@ def start_servers():
 # @pytest.fixture(scope="session", autouse=True)
 @pytest.fixture(autouse=True)
 def clean_routed():
+    # Give asynchronous slow worker time to finish writing
+    timeout = time.time() + 1.0
+    while ROUTED.exists() and any(ROUTED.iterdir()):
+        if time.time() > timeout:
+            break
+        time.sleep(0.01)
+    
     # Clean routed/ before every test
     if ROUTED.exists():
         shutil.rmtree(ROUTED)

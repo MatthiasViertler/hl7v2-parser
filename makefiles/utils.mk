@@ -82,7 +82,8 @@ PROM_METRICS_URL := http://localhost:8010/metrics
 # === Local Grafana Install ===
 GRAFANA_HOME := $(HOME)/grafana
 GRAFANA_BIN := $(GRAFANA_HOME)/bin/grafana
-GRAFANA_CONF := $(GRAFANA_HOME)/conf/defaults.ini
+#GRAFANA_CONF := $(GRAFANA_HOME)/conf/defaults.ini
+GRAFANA_CONF := $(GRAFANA_HOME)/conf/grafana.ini
 GRAFANA_DB := $(GRAFANA_HOME)/data/grafana.db
 GRAFANA_LOG := $(GRAFANA_HOME)/logs/grafana.log
 

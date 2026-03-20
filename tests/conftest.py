@@ -1,7 +1,8 @@
+# tests/conftest.py
+
 ## FILE LOADED PRIOR RUNNING TESTS
 # Adding project root to pytests sys.path (not only /tests/) so it can find the hl7engine package, etc.
 
-# tests/conftest.py
 import pytest
 import subprocess
 import time
@@ -12,41 +13,57 @@ import signal
 import shutil
 from pathlib import Path
 
+# -------------------------------------------------------------------
+# Paths & Constants
+# -------------------------------------------------------------------
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 REST_HOST = "localhost"
 REST_PORT = 8000
 
 MLLP_HOST = "localhost"
 MLLP_PORT = 2575
 
-# Prometheus server
-PROM_HOST = "localhost"
-PROM_PORT = 9090
-
-# Prometheus HTTP metrics viewing server
-PROM_HTTP_HOST = "localhost"
-PROM_HTTP_PORT = 8010
-
-# Project root (hl7v2-parser/)
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ROUTED = PROJECT_ROOT / "routed"
 DATA_DIR = PROJECT_ROOT / "data"
 RUNTIME_DB = DATA_DIR / "hl7_messages.db"
 SEED_DB = DATA_DIR / "seed" / "hl7_messages_demo.db"
 
-# Ensure project root is on sys.path --> NOT needed if package is installed via 'pip install -e .'
-#PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-# if PROJECT_ROOT not in sys.path:
-#     sys.path.insert(0, PROJECT_ROOT)
+# # Ensure project root is on sys.path --> NOT needed if package is installed via 'pip install -e .'
+# #PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# # if PROJECT_ROOT not in sys.path:
+# #     sys.path.insert(0, PROJECT_ROOT)
 
-# UNCOMMENT below to have pytest clean DB before each test session
-# @pytest.fixture(scope="session", autouse=True)
-# def reset_db_for_tests():
-#     if RUNTIME_DB.exists():
-#         RUNTIME_DB.unlink()
-#     shutil.copy(SEED_DB, RUNTIME_DB)
-#     yield
+# # CLI option '--use-external-servers' enables DEVELOPER mode: servers won't get killed/started automatically
+# #USE_EXTERNAL_SERVERS = os.environ.get("HL7_TEST_EXTERNAL_SERVERS") == "1"
+# def pytest_addoption(parser):
+#     parser.addoption(
+#         "--use-external-servers",
+#         action="store_true",
+#         default=False,
+#         help="Use externally running servers instead of starting test servers",
+#     )
+
+# -------------------------------------------------------------------
+# CLI Option: Developer Mode
+# -------------------------------------------------------------------
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--use-external-servers",
+        action="store_true",
+        default=False,
+        help="Do not kill/start servers; use externally running ones",
+    )
+
+
+# -------------------------------------------------------------------
+# Utility Functions
+# -------------------------------------------------------------------
 
 def wait_for_port(host, port, timeout=5.0):
+    """Wait until a TCP port is accepting connections."""
     start = time.time()
     while time.time() - start < timeout:
         try:
@@ -58,6 +75,7 @@ def wait_for_port(host, port, timeout=5.0):
 
 
 def kill_process_on_port(port):
+    """Kill any process listening on the given port."""
     try:
         out = subprocess.check_output(["lsof", "-t", f"-i:{port}"])
         for pid in out.decode().split():
@@ -65,15 +83,39 @@ def kill_process_on_port(port):
     except subprocess.CalledProcessError:
         pass
 
+
+# -------------------------------------------------------------------
+# Fixture: Reset DB (session-scoped)
+# -------------------------------------------------------------------
+
 @pytest.fixture(scope="session", autouse=True)
-def clean_runtime_db():
+def clean_runtime_db(request):
+    """Reset the runtime DB unless using external servers."""
+    if request.config.getoption("--use-external-servers"):
+        yield
+        return
+
     if RUNTIME_DB.exists():
         RUNTIME_DB.unlink()
+
     shutil.copy(SEED_DB, RUNTIME_DB)
     yield
 
+
+# -------------------------------------------------------------------
+# Fixture: Start/Stop Servers (session-scoped)
+# -------------------------------------------------------------------
+
 @pytest.fixture(scope="session", autouse=True)
-def start_servers():
+def start_servers(request):
+    """Start REST + MLLP servers unless using external servers."""
+    use_external = request.config.getoption("--use-external-servers")
+
+    if use_external:
+        print(">>> Developer mode: using external servers.")
+        yield
+        return
+
     # Kill stale servers
     kill_process_on_port(REST_PORT)
     kill_process_on_port(MLLP_PORT)
@@ -92,8 +134,6 @@ def start_servers():
         ],
         cwd=PROJECT_ROOT,
         env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT)},
-        stdout=None,
-        stderr=None,
     )
 
     if not wait_for_port(REST_HOST, REST_PORT):
@@ -103,15 +143,13 @@ def start_servers():
     # Start MLLP server
     mllp_proc = subprocess.Popen(
         [
-            sys.executable, 
-            "-m", 
-            "hl7engine.mllp_server", 
+            sys.executable,
+            "-m",
+            "hl7engine.mllp_server",
             "--prometheus",
         ],
         cwd=PROJECT_ROOT,
         env={**os.environ, "PYTHONPATH": str(PROJECT_ROOT)},
-        stdout=None,
-        stderr=None,
     )
 
     if not wait_for_port(MLLP_HOST, MLLP_PORT):
@@ -128,18 +166,29 @@ def start_servers():
         except Exception:
             pass
 
-# @pytest.fixture(scope="session", autouse=True)
+
+# -------------------------------------------------------------------
+# Fixture: Clean routed/ before each test
+# -------------------------------------------------------------------
+
 @pytest.fixture(autouse=True)
-def clean_routed():
-    # Give asynchronous slow worker time to finish writing
+def clean_routed(request):
+    """Clean routed/ folder before each test."""
+    use_external = request.config.getoption("--use-external-servers")
+
+    if use_external:
+        print(">>> Developer mode: cleaning routed/ folder anyway.")
+
+    # Give async worker time to finish writing
     timeout = time.time() + 1.0
     while ROUTED.exists() and any(ROUTED.iterdir()):
         if time.time() > timeout:
             break
         time.sleep(0.01)
-    
-    # Clean routed/ before every test
+
+    # Clean routed/
     if ROUTED.exists():
         shutil.rmtree(ROUTED)
     ROUTED.mkdir(parents=True, exist_ok=True)
+
     yield

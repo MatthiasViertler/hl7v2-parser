@@ -56,7 +56,7 @@ grafana-clear-dashboard: ## Reset Grafana dashboards (for maintenance)
 	@sqlite3 "$(GRAFANA_DB)" "DELETE FROM dashboard WHERE uid='$(UID)';"
 	@echo "Dashboard removed. Restart Grafana to re-import."
 
-sync-provisioning-files: ## Sync Grafana dashboards + provisioning files
+grafana-sync-provisioning: ## Sync Grafana dashboards + provisioning files
 	@echo "Syncing Grafana dashboards and provisioning files..."
 	@mkdir -p $(GRAFANA_DASH_DST)/hl7-engine
 	@mkdir -p $(GRAFANA_DATASOURCE_DST)

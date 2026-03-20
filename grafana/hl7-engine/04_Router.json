@@ -1,46 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS",
-      "label": "Prometheus",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "11.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "gauge",
-      "name": "Gauge",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    }
-  ],
   "uid": "hl7-router",
   "title": "04_Router",
   "tags": ["hl7", "router"],
@@ -57,7 +15,10 @@
       "type": "stat",
       "title": "Messages Routed (1m rate)",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
       "targets": [
         { "refId": "A", "expr": "rate(hl7_router_messages_routed_total[1m])" }
       ],
@@ -88,9 +49,12 @@
       "type": "stat",
       "title": "Routing Errors (5m)",
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
       "targets": [
-        { "refId": "A", "expr": "increase(hl7_router_errors_total[5m])" }
+        { "refId": "A", "expr": "increase(hl7_router_routing_errors_total[5m])" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -118,16 +82,19 @@
       "type": "timeseries",
       "title": "Routing Latency p95/p99",
       "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
       "targets": [
         {
           "refId": "A",
-          "expr": "hl7_router_latency_p95_seconds",
+          "expr": "hl7_proc_stage_duration_seconds_p95_seconds{stage='routing'}",
           "legendFormat": "p95"
         },
         {
           "refId": "B",
-          "expr": "hl7_router_latency_p99_seconds",
+          "expr": "hl7_proc_stage_duration_seconds_p99_seconds{stage='routing'}",
           "legendFormat": "p99"
         }
       ],
@@ -156,7 +123,10 @@
       "type": "timeseries",
       "title": "Routing Failures by Destination (5m)",
       "gridPos": { "h": 6, "w": 12, "x": 12, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
       "targets": [
         {
           "refId": "A",
@@ -178,7 +148,10 @@
       "type": "timeseries",
       "title": "Messages per Destination (1m rate)",
       "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
       "targets": [
         {
           "refId": "A",
@@ -200,7 +173,10 @@
       "type": "timeseries",
       "title": "Routing Rule Hits (per minute)",
       "gridPos": { "h": 6, "w": 12, "x": 12, "y": 10 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
       "targets": [
         {
           "refId": "A",

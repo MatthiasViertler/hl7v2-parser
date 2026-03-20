@@ -17,7 +17,7 @@ groups:
         description: "The HL7 MLLP listener is reporting connection or framing errors."
 
     - alert: HL7_MLLP_StalledInput
-      expr: rate(hl7_mllp_messages_received_total[5m]) == 0
+      expr: rate(hl7_messages_received_total[5m]) == 0
       for: 5m
       labels:
         severity: critical
@@ -39,7 +39,7 @@ groups:
         description: "Messages are failing to parse. Check HL7 formatting or upstream systems."
 
     - alert: HL7_Parser_LatencyHigh
-      expr: hl7_parser_latency_p95_seconds > 0.5
+      expr: hl7_parser_latency_seconds_p95_seconds > 0.5
       for: 3m
       labels:
         severity: warning
@@ -74,7 +74,7 @@ groups:
     # ---------------------------------------------------------
 
     - alert: HL7_Router_Errors
-      expr: increase(hl7_router_errors_total[5m]) > 0
+      expr: increase(hl7_router_routing_errors_total[5m]) > 0
       for: 2m
       labels:
         severity: warning
@@ -96,7 +96,7 @@ groups:
     # ---------------------------------------------------------
 
     - alert: HL7_Processing_Errors
-      expr: increase(hl7_processing_errors_total[5m]) > 0
+      expr: (increase(hl7_proc_stage_errors_total{stage='routing'}[5m]) + increase(hl7_proc_stage_errors_total{stage='file_write'}[5m]) + increase(hl7_proc_stage_errors_total{stage='db_insert'}[5m])) > 0
       for: 2m
       labels:
         severity: warning
@@ -118,7 +118,7 @@ groups:
     # ---------------------------------------------------------
 
     - alert: HL7_Storage_Errors
-      expr: increase(hl7_store_errors_total[5m]) > 0
+      expr: increase(hl7_store_write_errors_total[5m]) > 0
       for: 2m
       labels:
         severity: critical
@@ -134,15 +134,6 @@ groups:
       annotations:
         summary: "Storage write latency elevated"
         description: "Database writes are slower than expected."
-
-    - alert: HL7_Storage_QueueHigh
-      expr: hl7_store_queue_depth > 100
-      for: 3m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Storage queue depth high"
-        description: "Messages are backing up waiting to be written to storage."
 
     # ---------------------------------------------------------
     # 7. Exporter Alerts
@@ -165,12 +156,3 @@ groups:
       annotations:
         summary: "Exporter retries elevated"
         description: "Downstream systems may be unreachable or rejecting messages."
-
-    - alert: HL7_Exporter_QueueHigh
-      expr: hl7_export_queue_depth > 100
-      for: 3m
-      labels:
-        severity: critical
-      annotations:
-        summary: "Exporter queue depth high"
-        description: "Messages are backing up waiting to be exported."

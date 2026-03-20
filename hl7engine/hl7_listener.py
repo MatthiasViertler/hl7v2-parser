@@ -13,6 +13,8 @@
 
 # hl7engine/hl7_listener.py
 
+import time
+
 from hl7apy.parser import parse_message
 from hl7apy.exceptions import HL7apyException
 
@@ -81,7 +83,7 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
         ack (str)
         context (dict)
     """
-
+    processing_start = time.time()
     raw_hl7 = normalize_hl7(raw_hl7)
 
     # Empty frame
@@ -127,7 +129,9 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
 
     try:
         # Parse
+        parse_start = time.time()
         msg = parse_message(raw_hl7_norm, find_groups=False)
+        metrics.observe("parser_latency_seconds", time.time() - parse_start)
         metrics.inc("parser_messages_parsed_total")
 
         # Extract version
@@ -169,10 +173,14 @@ def fast_ack_phase(raw_hl7: str, sender_ip: str):
                 "parser_validation_errors_total",
                 labels={"error_code": ack_code},
             )
+        
+        # Processing time is w/o ACK
+        metrics.observe("processing_latency_seconds", time.time() - processing_start)
 
     except Exception as e:
         # Parsing error → fallback ACK
         metrics.inc("parser_parse_errors_total", labels={"error_code": "PARSE"})
+        metrics.observe("processing_latency_seconds", time.time() - processing_start)
         ack = build_ack_simple("UNKNOWN", "AE", f"Parsing error: {e}")
         return ack, {
             "raw_hl7_norm": raw_hl7_norm,

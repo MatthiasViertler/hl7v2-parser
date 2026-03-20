@@ -317,6 +317,7 @@ class MLLPServer:
         # SLOW PHASE → routing, file writing, DB insert, logging
         try:
             self.slow_executor.submit(slow_processing_phase, ctx)
+            metrics.set("processing_queue_depth", self.slow_executor._work_queue.qsize())
             metrics.inc("messages_processed_total")
             logger.info(
                 {

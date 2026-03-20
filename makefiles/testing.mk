@@ -16,3 +16,12 @@ benchmark-tests: ## Run pytest with duration reporting
 
 coverage: ## Run coverage report
 	$(PYTEST) --cov=hl7engine --cov-report=term-missing
+
+test-dev: ## Run full test suite in DEVELOPER mode (no server creation/killing or cleanup)
+	$(PYTEST) $(PYTEST_FLAGS) --use-external-servers
+
+test-file-dev: ## Run tests for specific file in DEVELOPER mode: make test-file FILE=...
+	$(PYTEST) -q --use-external-servers -k $(FILE)
+
+test-name-dev: ## Run tests in DEVELOPER mode, matching a name: make test-name NAME=...
+	$(PYTEST) -q --use-external-servers -k $(NAME)

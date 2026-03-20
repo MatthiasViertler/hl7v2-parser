@@ -6,6 +6,7 @@
 # hl7engine/router.py
 
 import os
+import time
 import yaml
 from pathlib import Path
 
@@ -71,6 +72,7 @@ class Router:
         Returns:
             (parent_folder, routed_path)
         """
+        route_start = time.time()
 
         msg_type = (msg_type or "").upper()
         trigger = self._extract_trigger(raw_hl7)
@@ -112,5 +114,7 @@ class Router:
             "router_routing_errors_total",
             labels={"route": "UNKNOWN"},
         )
+
+        metrics.observe("router_latency_seconds", time.time() - route_start)
 
         return parent_folder, parent_folder

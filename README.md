@@ -87,7 +87,7 @@ hl7v2-parser/
 │   └── ...
 │
 ├── monitoring/
-│   ├── prometheus                 # Prometheus config (scrape targets, rules) 
+│   ├── prometheus/                # Prometheus config (scrape targets, rules) 
 │   ├── grafana/                   # Dashboards, provisioning, datasources
 │   ├── logs/                      # Runtime logs (Prometheus, REST API, etc.)
 │   └── README.md

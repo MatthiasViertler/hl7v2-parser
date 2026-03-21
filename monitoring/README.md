@@ -1,11 +1,42 @@
 # Monitoring & Observability
 
-This directory contains configuration files for Prometheus and Grafana used to monitor the HL7 Engine.
+Monitoring & Observability
+This directory contains everything related to monitoring the HL7 Engine, including Prometheus configuration, Grafana dashboards, and runtime logs.
+The monitoring stack is intentionally lightweight and easy to run locally.
+
+It consists of:
+- Prometheus for metrics collection
+- Grafana for dashboards
+- Logs for debugging
+
+
+```
+monitoring/
+│
+├── grafana/            # Dashboards, provisioning, datasources
+├── prometheus/         # Prometheus config (scrape targets, rules)
+├── logs/               # Runtime logs (Prometheus, REST API, etc.)
+└── README.md           # This file
+```
+
 ## Prometheus
 
-### Start Prometheus
-./prometheus --config.file=monitoring/Prometheus.yml
+Prometheus scrapes metrics from the HL7 Engine at:
+```
+http://localhost:8010/metrics
+```
 
+### Start Prometheus
+
+./prometheus --config.file=monitoring/prometheus/prometheus.yml
+
+or
+
+```
+make prom-start
+```
+
+or check out the promoetheus.mk and utils.mk make file in makefiles/ for more details.
 
 Prometheus will scrape the HL7 Engine at:
 http://localhost:8010/metrics
@@ -27,9 +58,9 @@ http://localhost:8010/metrics
 
 
 ## Grafana
-A ready‑to‑import dashboard is provided:
+Grafana dashboards are stored under:
 ```
-monitoring/Grafana_dashboard_hl7.json
+monitoring/grafana/
 ```
 
 It includes:
@@ -40,21 +71,14 @@ It includes:
 - Error counters
 - Message volume over time
 
-## Alerting
-Prometheus alert rules are defined in:
-monitoring/alert_rules.yml
+### Start Grafana
 
+```
+make grafana-start
+```
+
+## Alerting
+Alert rules are not included yet.
+A new alert_rules.yml will be added once the metric set stabilizes.
 
 These can be enabled by adding them to your Prometheus configuration.
-
-File Overview
-monitoring/
-│
-├── Prometheus.yml                 # Prometheus scrape config
-├── alert_rules.yml                # Optional alerting rules
-├── Grafana_dashboard_hl7.json     # Grafana dashboard
-└── README.md                      # This file
-
-
-
-

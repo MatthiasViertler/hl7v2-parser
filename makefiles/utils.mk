@@ -52,9 +52,9 @@ PROM_ALERTS_DST := $(PROM_HOME)/alerts
 PROM_RECORDING_DST := $(PROM_ALERTS_DST)/recording_rules.yml
 
 # Source files in repo
-PROM_CONF_SRC := $(shell pwd)/prometheus/prometheus.yml
-PROM_ALERTS_SRC := $(shell pwd)/prometheus/alerts/hl7-engine.yml
-PROM_RECORDING_SRC := $(shell pwd)/prometheus/alerts/recording_rules.yml
+PROM_CONF_SRC := $(shell pwd)/monitoring/prometheus/prometheus.yml
+PROM_ALERTS_SRC := $(shell pwd)/monitoring/prometheus/alerts/hl7-engine.yml
+PROM_RECORDING_SRC := $(shell pwd)/monitoring/prometheus/alerts/recording_rules.yml
 # (DEPRECATED) Rule files in our repo
 #PROM_RULES_SRC := $(shell pwd)/prometheus
 #PROM_RULES := alerts/recording_rules.yml alerts/hl7-engine.yml prometheus.yml
@@ -93,9 +93,9 @@ GRAFANA_DASH_DST := $(GRAFANA_PROVISIONING_DST)/dashboards
 GRAFANA_DATASOURCE_DST := $(GRAFANA_PROVISIONING_DST)/datasources
 
 # Source files in our repo
-GRAFANA_DASH_SRC := $(shell pwd)/grafana/hl7-engine
-GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/grafana/provisioning/dashboards/hl7-engine.yaml
-GRAFANA_DATASOURCE_FILE_SRC := $(shell pwd)/grafana/provisioning/datasources/prometheus.yaml
+GRAFANA_DASH_SRC := $(shell pwd)/monitoring/grafana/hl7-engine
+GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/monitoring/grafana/provisioning/dashboards/hl7-engine.yaml
+GRAFANA_DATASOURCE_FILE_SRC := $(shell pwd)/monitoring/grafana/provisioning/datasources/prometheus.yaml
 
 
 # ---------------------------------------------------------

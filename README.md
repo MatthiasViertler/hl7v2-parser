@@ -87,9 +87,9 @@ hl7v2-parser/
 │   └── ...
 │
 ├── monitoring/
-│   ├── prometheus.yml             # Prometheus config
-│   ├── alert_rules.yml
-│   ├── grafana_dashboard.json     # Grafana dashboard
+│   ├── prometheus                 # Prometheus config (scrape targets, rules) 
+│   ├── grafana/                   # Dashboards, provisioning, datasources
+│   ├── logs/                      # Runtime logs (Prometheus, REST API, etc.)
 │   └── README.md
 |
 ├── config/                        # YAML configuration files
@@ -171,8 +171,8 @@ These documents describe the internal design, message flow, and how to interpret
 
 - Python 3.10+
 - matplotlib (for visualization in benchmark)
-- Prometheus (for scraping benchmark/test results)
-- Grafana (for dashboards)
+- Prometheus (for scraping benchmark/test results) - dev install best locally under ~/
+- Grafana (for dashboards) - dev install best locally under ~/
 - A running HL7 MLLP server (default: `127.0.0.1:2575`)
 
 Install dependencies:
@@ -224,6 +224,8 @@ Prometheus UI      |      9090      |  Prometheus dashboard
 ---
 
 ## Monitoring with Prometheus
+
+Check out /monitoring/README.md
 
 1. Start Prometheus
 
@@ -278,13 +280,13 @@ hl7_workers_busy / hl7_workers_max
 
 ## Grafana Dashboard
 
-A ready‑to‑import dashboard is available in:
+Ready‑to‑import dashboards are available in:
 
 ```
-monitoring/grafana/dashboard.json
+monitoring/grafana/hl7-engine/
 ```
 
-The dashboard includes:
+The dashboards includes:
 - Throughput (msg/sec)
 - ACK latency (p50/p95/p99)
 - Queue depth
@@ -329,6 +331,104 @@ This displays routed HL7 messages grouped by destination.
 ---
 
 ## Developer Workflow
+
+### Test Bench Usage
+
+This project includes a fully automated test bench for validating the HL7 Engine, including REST API behavior, MLLP message handling, routing, and database interactions.
+
+The test suite supports two modes:
+1. CI Mode (default)
+Runs with fully automated server lifecycle management.
+```
+pytest
+```
+or 
+```
+make test
+```
+
+In this mode:
+• 	REST server is started automatically
+• 	MLLP server is started automatically
+• 	Runtime DB is reset from seed
+• 	 folder is cleaned before each test
+• 	Servers are shut down after the test session
+Use this mode for:
+• 	CI pipelines
+• 	reproducible test runs
+• 	validating changes before committing
+
+2. Developer Mode (manual servers)
+Use this when you want to run the servers yourself.
+
+```
+pytest --use-external-servers
+```
+or
+```
+make test-dev
+```
+In this mode:
+• 	No servers are started or stopped
+• 	No DB reset
+• 	 folder is still cleaned (configurable)
+• 	Tests run against your manually running REST + MLLP servers
+Use this mode for:
+• 	debugging
+• 	interactive development
+• 	running tests while the engine is already running
+
+You can also check out /makefiles/testing.mk
+
+#### Health Checks
+The test suite includes early health‑check tests that verify:
+• 	REST server is reachable
+• 	MLLP server is reachable
+If these fail:
+• 	In CI mode → pytest failed to start the servers
+• 	In developer mode → start your servers manually
+
+Server Ports
+• 	REST API: 8000
+• 	MLLP Server: 2575
+• 	Prometheus metrics: 8010
+
+You can check all servers' status via
+```
+make monitoring-status
+```
+
+#### Test Structure
+Tests live under:
+```
+tests/
+```
+Fixtures and server lifecycle logic are defined in:
+```
+tests/conftest.py
+```
+#### Typical Developer Workflow
+Start servers manually:
+```
+make rest-start
+make hl7-start
+```
+Additionally, you might want to start monitoring servers:
+```
+make prom-start
+make grafana-start
+```
+
+Or start the full server stack including monitoring (prometheus/grafana) servers:
+
+```
+make stack-start
+```
+
+Then run tests without touching your servers:
+```
+pytest --use-external-servers
+```
 
 ### VS Code Debug Configurations
 The project includes .vscode/launch.json with:

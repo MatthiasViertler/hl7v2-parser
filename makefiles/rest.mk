@@ -7,7 +7,7 @@
 rest-start-fg: ## Start REST API in foreground
 	uvicorn hl7engine.api:app --host 0.0.0.0 --port $(REST_PORT)
 
-rest-start: # Start REST API server on port REST_PORT
+rest-start: ## Start REST API server on port REST_PORT
 	@echo "Starting REST API in background..."
 	@mkdir -p $(shell pwd)/monitoring/logs
 	@nohup uvicorn hl7engine.api:app \

@@ -136,6 +136,55 @@ With this structure after server-tuning:
                               ▼
                         Prometheus Metrics (8010)
 
+With this architecture after adding monitoring:
+
+                          ┌──────────────────────────┐
+                          │        HL7 Sender        │
+                          │ (External HL7 Systems)   │
+                          └─────────────┬────────────┘
+                                        │ MLLP (2575)
+                                        ▼
+                          ┌──────────────────────────┐
+                          │      MLLP Server         │
+                          │  hl7engine.mllp_server   │
+                          └─────────────┬────────────┘
+                                        │
+                                        ▼
+                          ┌──────────────────────────┐
+                          │     HL7 Engine Core      │
+                          │  Parsing / Routing / DB  │
+                          └─────────────┬────────────┘
+                                        │
+                                        │ Writes routed messages
+                                        ▼
+                          ┌──────────────────────────┐
+                          │        routed/           │
+                          └──────────────────────────┘
+
+                                        ▲
+                                        │ REST (8000)
+                          ┌─────────────┴────────────┐
+                          │        REST API           │
+                          │     hl7engine.api         │
+                          └─────────────┬────────────┘
+                                        │
+                                        ▼
+                          ┌──────────────────────────┐
+                          │     Prometheus (8010)    │
+                          │   /metrics endpoint       │
+                          └─────────────┬────────────┘
+                                        │ scrapes
+                                        ▼
+                          ┌──────────────────────────┐
+                          │       Prometheus         │
+                          └─────────────┬────────────┘
+                                        │ datasource
+                                        ▼
+                          ┌──────────────────────────┐
+                          │         Grafana          │
+                          │   Dashboards & Alerts    │
+                          └──────────────────────────┘
+
 2. Component Architecture
 2.1 MLLP Server (hl7engine/mllp_server.py)
 Handles:

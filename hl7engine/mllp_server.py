@@ -139,6 +139,7 @@ class MLLPServer:
     # CONNECTION HANDLER
     # ------------------------------------------------------------
     def _handle_connection(self, conn: socket.socket, addr):
+        ack_rtt_start = 0
         sender_ip = addr[0]
         buffer = b""
         try:
@@ -181,6 +182,8 @@ class MLLPServer:
                     metrics.inc("mllp_frame_starts_total")
 
                     try:
+                        # Measure ACK RTT including frame handling
+                        ack_rtt_start = time.time()
                         raw_hl7 = frame.decode(errors="ignore")
                         raw_hl7 = normalize_hl7(raw_hl7)
                     except Exception:
@@ -194,7 +197,7 @@ class MLLPServer:
                         continue
 
                     metrics.inc("messages_received_total")
-                    self._enqueue_message(raw_hl7, conn, sender_ip)
+                    self._enqueue_message(raw_hl7, conn, sender_ip, ack_rtt_start)
         finally:
             self._on_connection_close()
             try:
@@ -211,9 +214,9 @@ class MLLPServer:
     # ------------------------------------------------------------
     # QUEUE ENQUEUE + BACKPRESSURE
     # ------------------------------------------------------------
-    def _enqueue_message(self, raw_hl7: str, conn: socket.socket, sender_ip: str):
+    def _enqueue_message(self, raw_hl7: str, conn: socket.socket, sender_ip: str, ack_rtt_start: time):
         try:
-            self.queue.put_nowait((raw_hl7, conn, sender_ip))
+            self.queue.put_nowait((raw_hl7, conn, sender_ip, ack_rtt_start))
 
             depth = self.queue.qsize()
             metrics.set(
@@ -255,7 +258,7 @@ class MLLPServer:
 
         while not self._shutdown.is_set():
             try:
-                raw_hl7, conn, sender_ip = self.queue.get(timeout=1.0)
+                raw_hl7, conn, sender_ip, ack_rtt_start = self.queue.get(timeout=1.0)
             except Exception:
                 continue
 
@@ -267,7 +270,7 @@ class MLLPServer:
             )
 
             try:
-                self._process_message(raw_hl7, conn, sender_ip)
+                self._process_message(raw_hl7, conn, sender_ip, ack_rtt_start)
             finally:
                 self.queue.task_done()
                 self._workers_busy = max(0, self._workers_busy - 1)
@@ -280,18 +283,18 @@ class MLLPServer:
     # ------------------------------------------------------------
     # PROCESS MESSAGE (FAST ACK + ASYNC SLOW PHASE)
     # ------------------------------------------------------------
-    def _process_message(self, raw_hl7: str, conn: socket.socket, sender_ip: str):
+    def _process_message(self, raw_hl7: str, conn: socket.socket, sender_ip: str, ack_rtt_start: time):
         e2e_start = time.time()
         logger.info({"event": "message_processing_start", "sender_ip": sender_ip})
 
         # FAST PHASE → parse + validate + build ACK
         try:
-            ack_start = time.time()
+            # ack_start = time.time() - we measure true RTT, including MLLP frame handling
             ack, ctx = fast_ack_phase(raw_hl7, sender_ip)
-            ack_latency_seconds = time.time() - ack_start
+            # ack_rtt = time.time() - ack_start
 
             metrics.inc("ack_generated_total")
-            metrics.observe("ack_rtt", ack_latency_seconds)
+            # metrics.observe("ack_rtt_seconds", ack_rtt)
         except Exception as e:
             logger.error({"event": "fast_ack_exception", "error": str(e)})
             metrics.inc("ack_generation_errors_total")
@@ -301,6 +304,11 @@ class MLLPServer:
         framed_ack = START_BLOCK + ack.encode() + END_BLOCK
         try:
             conn.sendall(framed_ack)
+
+            # Calculate ACK RTT based on start time where MLLP frame was processed
+            ack_rtt = time.time() - ack_rtt_start
+            metrics.observe("ack_rtt_seconds", ack_rtt)
+
             metrics.inc("ack_sent_total")
             metrics.inc("mllp_bytes_sent_total", amount=len(framed_ack))
             logger.info({"event": "ack_sent", "sender_ip": sender_ip})

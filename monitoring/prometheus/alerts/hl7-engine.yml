@@ -60,14 +60,24 @@ groups:
         summary: "ACK success rate below 95%"
         description: "Downstream systems may be rejecting messages or failing to respond."
 
-    - alert: HL7_ACK_RTT_High
-      expr: hl7_ack_rtt_p95_seconds > 1
+    - alert: HL7_ACK_LatencyHigh
+      expr: hl7_ack_rtt_seconds_p95_seconds > 0.05
       for: 3m
       labels:
         severity: warning
       annotations:
-        summary: "ACK round-trip time elevated"
-        description: "ACK latency is above 1 second."
+        summary: "ACK RTT latency above 50ms"
+        description: "p95 ACK round-trip time exceeded 50ms for 3 minutes."
+
+    - alert: HL7_ACK_LatencyCritical
+      expr: hl7_ack_rtt_seconds_p95_seconds > 0.6
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "ACK RTT latency above 600ms"
+        description: "p95 ACK round-trip time exceeded 600ms for 1 minutes."
+
 
     # ---------------------------------------------------------
     # 4. Router Alerts
@@ -156,3 +166,41 @@ groups:
       annotations:
         summary: "Exporter retries elevated"
         description: "Downstream systems may be unreachable or rejecting messages."
+
+
+      # ---------------------------------------------------------
+      # 8. Message Loss Alerts
+      # ---------------------------------------------------------
+    - alert: HL7_MessageLoss
+      expr: increase(hl7_queue_overflow_total[5m]) > 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Message loss detected"
+        description: "The processing queue overflowed and messages were dropped."
+
+      # ---------------------------------------------------------
+      # 9. Worker Saturation Alerts
+      # ---------------------------------------------------------
+    - alert: HL7_Worker_Saturation
+      expr: (hl7_workers_busy / hl7_workers_max) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Worker saturation above 85%"
+        description: "Workers are above 85% utilization."
+
+      # ---------------------------------------------------------
+      # 10. End-to-End Latency Alerts
+      # ---------------------------------------------------------
+
+    - alert: HL7_EndToEnd_LatencyHigh
+      expr: hl7_message_end_to_end_latency_p95_seconds > 0.5
+      for: 3m
+      labels:
+        severity: warning
+      annotations:
+        summary: "End-to-end latency above 500ms"
+        description: "p95 end-to-end latency exceeded 500ms."

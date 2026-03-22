@@ -143,8 +143,51 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Validation Errors (5m)",
+      "title": "Parse Errors (5m)",
       "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(hl7_parser_parse_errors_total{error_code!=\"\"}[5m]))",
+          "legendFormat": "",
+          "interval": ""
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Validation Errors (5m)",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -184,7 +227,7 @@
       }
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "timeseries",
       "title": "End-to-End Latency p95/p99",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
@@ -233,7 +276,7 @@
       }
     },
     {
-      "id": 6,
+      "id": 7,
       "type": "timeseries",
       "title": "DB Write Latency p95/p99",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
@@ -274,7 +317,7 @@
       }
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "timeseries",
       "title": "Router Errors by Stage",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
@@ -309,7 +352,7 @@
       }
     },
     {
-      "id": 8,
+      "id": 9,
       "type": "timeseries",
       "title": "Exporter Scrapes & Errors",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },

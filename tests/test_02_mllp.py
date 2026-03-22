@@ -11,21 +11,39 @@ import requests
 HOST = "localhost"
 PORT = 2575
 
+MLLP_START = b"\x0b"
+MLLP_END = b"\x1c\x0d"
+
 BASE = Path.cwd() # Do NOT use 'Path(__file__).resolve().parent.parent' since pytest rewrites test files and runs them from different location (temp cache dir)
 SAMPLES = BASE / "samples"  # put your .hl7 files here
 ROUTED = BASE / "routed"
 
 
-def send_hl7_message(raw_hl7: str, delay_chunks=None):
-    """Send one HL7 message over MLLP, optionally fragmented."""
-    msg = raw_hl7.replace("\n", "\r")
-    framed = b"\x0b" + msg.encode() + b"\x1c\x0d"
+def send_mllp_frame(host: str, port: int, framed: bytes) -> bytes:
+    """Low-level MLLP sender. Sends a fully framed HL7 message."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    s.sendall(framed)
+    s.settimeout(2.0)
+    data = s.recv(4096)
+    s.close()
+    return data
+
+
+def send_hl7_message(raw_hl7: str, delay_chunks=None) -> bytes:
+    """
+    High-level HL7 sender.
+    - Normalizes line endings
+    - Applies MLLP framing
+    - Supports optional fragmentation
+    """
+    msg = raw_hl7.replace("\n", "\r").encode()
+    framed = MLLP_START + msg + MLLP_END
 
     s = socket.socket()
     s.connect((HOST, PORT))
 
     if delay_chunks:
-        # send in chunks with delays (fragmentation test)
         start = 0
         for size, delay in delay_chunks:
             end = start + size
@@ -41,6 +59,28 @@ def send_hl7_message(raw_hl7: str, delay_chunks=None):
     ack = s.recv(4096)
     s.close()
     return ack
+
+
+def send_multiple_hl7_messages(raw_messages: list[str]) -> tuple[bytes, bytes]:
+    """
+    Sends multiple HL7 messages in a single MLLP connection.
+    Returns the ACKs in order.
+    """
+    framed = b"".join(
+        MLLP_START + raw.replace("\n", "\r").encode() + MLLP_END
+        for raw in raw_messages
+    )
+
+    s = socket.socket()
+    s.connect((HOST, PORT))
+    s.sendall(framed)
+
+    s.settimeout(2.0)
+    ack1 = s.recv(4096)
+    ack2 = s.recv(4096)
+    s.close()
+
+    return ack1, ack2
 
 def wait_for_new_file(before, timeout=3.0):
     start = time.time()
@@ -79,25 +119,11 @@ def test_single_oru():
 
 def test_multiple_messages_one_connection():
     before = set(list_routed())
+
     raw1 = read_sample("sample_adt_a01.hl7")
     raw2 = read_sample("sample_oru_glucose.hl7")
 
-    msg1 = raw1.replace("\n", "\r")
-    msg2 = raw2.replace("\n", "\r")
-
-    framed = (
-        b"\x0b" + msg1.encode() + b"\x1c\x0d" +
-        b"\x0b" + msg2.encode() + b"\x1c\x0d"
-    )
-
-    s = socket.socket()
-    s.connect((HOST, PORT))
-    s.sendall(framed)
-
-    s.settimeout(2.0)
-    ack1 = s.recv(4096)
-    ack2 = s.recv(4096)
-    s.close()
+    ack1, ack2 = send_multiple_hl7_messages([raw1, raw2])
 
     time.sleep(0.5)
     after = set(list_routed())
@@ -168,3 +194,84 @@ def test_multiple_patients():
         res = requests.get(f"http://localhost:8000/patients/{pid}/messages")
         assert res.status_code == 200
         assert len(res.json()) >= 1, f"No messages found for patient {pid}"
+
+
+def test_mllp_invalid_message_increments_metric():
+    """
+    Sends an invalid HL7 message via MLLP.
+    Expects:
+    - NACK returned (AE or AR)
+    - parser_parse_errors_total incremented
+    """
+
+    invalid_msg = "FOO|bar|baz\r"
+
+    # Send invalid HL7
+    ack = send_hl7_message(invalid_msg)
+
+    # ACK must be a NACK (AE or AR)
+    assert b"MSA" in ack
+    assert b"AE" in ack or b"AR" in ack
+
+    # Give Prometheus client a moment to flush
+    time.sleep(0.2)
+
+    # Check metrics
+    metrics = requests.get("http://localhost:8010/metrics").text
+    assert "parser_parse_errors_total" in metrics
+
+def test_mllp_validation_error_increments_metric():
+    """
+    Sends a syntactically valid HL7 message that fails YAML validation.
+    Expects:
+    - NACK returned (AE or AR)
+    - parser_validation_errors_total incremented
+    """
+
+    raw = (
+        "MSH|^~\\&|LAB|HOSP|EHR|HOSP|20240220||ORU^R01|X99|P|2.5.1\r"
+        "PID|1|||\r"
+    )
+
+    ack = send_hl7_message(raw)
+
+    # ACK must be a validation NACK
+    assert b"MSA" in ack
+    assert b"AE" in ack or b"AR" in ack
+
+    # Give Prometheus client a moment to flush
+    time.sleep(0.2)
+
+    metrics = requests.get("http://localhost:8010/metrics").text
+    assert "parser_validation_errors_total" in metrics
+
+def test_mllp_unknown_message_type_increments_router_error():
+    """
+    Sends a syntactically valid HL7 message with an unknown message type.
+    Expects:
+    - router_routing_errors_total incremented
+    - message routed to UNKNOWN folder
+    """
+
+    raw = (
+        "MSH|^~\\&|LAB|HOSP|EHR|HOSP|20240220||ZZZ^Z01|X404|P|2.5.1\r"
+        "PID|1||12345^^^HOSP^MR\r"
+    )
+
+    before = set(list_routed())
+
+    ack = send_hl7_message(raw)
+
+    # ACK should still be AA (validation passes)
+    assert b"MSA|AA|" in ack
+
+    time.sleep(0.3)
+
+    metrics = requests.get("http://localhost:8010/metrics").text
+    assert "router_routing_errors_total" in metrics
+
+    after = set(list_routed())
+    new_files = after - before
+
+    # Should be routed to UNKNOWN folder
+    assert any("UNKNOWN" in str(p) for p in new_files)

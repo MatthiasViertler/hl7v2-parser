@@ -36,8 +36,8 @@ EXPECTED_METRICS = {
     "hl7_ack_generated_total",
     "hl7_ack_sent_total",
     "hl7_ack_generation_errors_total",
-    "hl7_ack_rtt_p95_seconds",
-    "hl7_ack_rtt_p99_seconds",
+    "hl7_ack_rtt_seconds_p95_seconds",
+    "hl7_ack_rtt_seconds_p99_seconds",
 
     # End-to-end
     "hl7_message_end_to_end_latency_p95_seconds",

@@ -94,12 +94,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "hl7_ack_rtt_p95_seconds",
+          "expr": "hl7_ack_rtt_seconds_p95_seconds",
           "legendFormat": "p95"
         },
         {
           "refId": "B",
-          "expr": "hl7_ack_rtt_p99_seconds",
+          "expr": "hl7_ack_rtt_seconds_p99_seconds",
           "legendFormat": "p99"
         }
       ],

@@ -9,104 +9,42 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "DS_PROMETHEUS"
+        },
+        "query": "label_values(hl7_parser_parse_errors_total, instance)",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "DS_PROMETHEUS"
+        },
+        "query": "label_values(hl7_parser_parse_errors_total, job)",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
-      "type": "stat",
-      "title": "Messages Parsed (1m rate)",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        { "refId": "A", "expr": "rate(hl7_parser_messages_parsed_total[1m])" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": 0 },
-              { "color": "green", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "orientation": "horizontal",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "Parse Errors (5m)",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        { "refId": "A", "expr": "increase(hl7_parser_parse_errors_total[5m])" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "red", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "orientation": "horizontal",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 3,
-      "type": "timeseries",
-      "title": "Message Types (per minute)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rate(hl7_parser_message_types_total[1m])",
-          "legendFormat": "{{type}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "ops" },
-        "overrides": []
-      },
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
-      }
-    },
-    {
-      "id": 4,
       "type": "timeseries",
       "title": "Parser Latency p95/p99",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 4 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -144,10 +82,103 @@
       }
     },
     {
-      "id": 5,
+      "id": 2,
+      "type": "stat",
+      "title": "Messages Parsed (1m rate)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        { "refId": "A", "expr": "rate(hl7_parser_messages_parsed_total[1m])" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Parse Errors (5m)",
+      "description": "instance=$instance, job=$job",
+      "gridPos": { "h": 10, "w": 6, "x": 12, "y": 4 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        { "refId": "A", "expr": "increase(hl7_parser_parse_errors_total[5m])" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.valueName",
+                "value": "large"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.error_code}"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
       "type": "timeseries",
-      "title": "Invalid Segments (5m)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
+      "title": "Message Types (per minute)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 8 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -155,13 +186,65 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "increase(hl7_parser_invalid_segments_total[5m])",
+          "expr": "rate(hl7_parser_message_types_total[1m])",
+          "legendFormat": "{{type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.message_type}"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
+    },
+    
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Invalid Segments (5m)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(hl7_parser_validation_errors_total[5m])",
           "legendFormat": "{{segment}}"
         }
       ],
       "fieldConfig": {
         "defaults": { "unit": "none" },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.error_code}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": { "displayMode": "table", "placement": "bottom" },

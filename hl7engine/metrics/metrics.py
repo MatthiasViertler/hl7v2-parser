@@ -23,8 +23,17 @@ class Metrics:
         # -----------------------------------------------------------------
 
         # ============================================================
+        # MLLP METRICS
+        # ============================================================
+        self.inc("mllp_read_errors_total", amount=0)
+        self.inc("mllp_frame_errors_total", amount=0)
+        self.inc("mllp_connection_errors_total", amount=0)
+        self.inc("mllp_write_errors_total", amount=0)
+
+        # ============================================================
         # PARSER METRICS
         # ============================================================
+        self.inc("parser_messages_parsed_total", amount=0)
 
         # --- Parse Errors (syntactic failures before validation) ---
         self.inc("parser_parse_errors_total", amount=0, labels={"error_code": "EMPTY"})
@@ -60,6 +69,15 @@ class Metrics:
         self.inc("mllp_frame_starts_total", amount=0)
 
         # ==========================
+        # Processing Metrics
+        # ==========================
+        self.inc("proc_stage_errors_total", amount=0, labels={"stage": "routing"})
+        self.inc("proc_stage_errors_total", amount=0, labels={"stage": "file_write"})
+        self.inc("proc_stage_errors_total", amount=0, labels={"stage": "db_insert"})
+
+        self.inc("processing_queue_depth", amount=0)
+
+        # ==========================
         # ACK Metrics
         # ==========================
         self.inc("ack_generated_total", amount=0, labels={"code": "AA"})
@@ -73,6 +91,11 @@ class Metrics:
         self.inc("messages_received_total", amount=0)
         self.inc("messages_processed_total", amount=0)
 
+        # ============================================================
+        # Storage METRICS
+        # ============================================================
+        self.inc("store_write_errors_total", amount=0)
+
         # ======================================
         # Latency Histograms (initialized empty)
         # ======================================
@@ -82,6 +105,7 @@ class Metrics:
         self.observe("store_write_latency_seconds", 0)
         self.observe("message_end_to_end_latency_seconds", 0)
         self.observe("ack_rtt_seconds", 0)
+        self.observe("hl7_message_end_to_end_latency", 0)
 
 
     def inc(self, name, amount=1, labels=None):

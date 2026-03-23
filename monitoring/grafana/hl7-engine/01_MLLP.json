@@ -45,56 +45,9 @@
     },
     {
       "id": 2,
-      "type": "timeseries",
-      "title": "Bytes Received (per second)",
-      "gridPos": { "h": 6, "w": 12, "x": 6, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "rate(hl7_mllp_bytes_received_total[1m])",
-          "legendFormat": "bytes/s",
-          "interval": ""
-        }
-      ],
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
-      },
-      "fieldConfig": {
-        "defaults": { "unit": "Bps" },
-        "overrides": []
-      }
-    },
-    {
-      "id": 3,
-      "type": "timeseries",
-      "title": "Bytes Sent (per second)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        { "refId": "A", "expr": "rate(hl7_mllp_bytes_sent_total[1m])", "legendFormat": "bytes/s" }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "Bps" },
-        "overrides": []
-      },
-      "options": {
-        "legend": { "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
-      }
-    },
-    {
-      "id": 4,
       "type": "stat",
       "title": "Frame Errors (5m)",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -124,10 +77,57 @@
       }
     },
     {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Bytes Received (per second)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(hl7_mllp_bytes_received_total[1m])",
+          "legendFormat": "bytes/s",
+          "interval": ""
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps" },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Bytes Sent (per second)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        { "refId": "A", "expr": "rate(hl7_mllp_bytes_sent_total[1m])", "legendFormat": "bytes/s" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "Bps" },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
+    },
+    {
       "id": 5,
       "type": "timeseries",
       "title": "Connection Errors (5m)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 16 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"

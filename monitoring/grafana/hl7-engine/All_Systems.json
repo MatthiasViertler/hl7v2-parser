@@ -76,7 +76,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "increase(hl7_mllp_read_errors_total[5m]) + increase(hl7_mllp_frame_errors_total[5m]) + increase(hl7_mllp_connection_errors_total[5m]) + increase(hl7_mllp_write_errors_total[5m]) + increase(hl7_parser_parse_errors_total[5m]) + increase(hl7_parser_validation_errors_total[5m]) + increase(hl7_router_routing_errors_total[5m]) + increase(hl7_store_write_errors_total[5m]) + increase(hl7_proc_stage_errors_total[5m])" 
+          "expr": "sum(increase(hl7_mllp_read_errors_total[5m]) or increase(hl7_mllp_frame_errors_total[5m]) or increase(hl7_mllp_connection_errors_total[5m]) or increase(hl7_mllp_write_errors_total[5m]) or increase(hl7_parser_parse_errors_total[5m]) or increase(hl7_parser_validation_errors_total[5m]) or increase(hl7_router_routing_errors_total[5m]) or increase(hl7_store_write_errors_total[5m]) or increase(hl7_proc_stage_errors_total[5m]))"
         }
       ],
       "fieldConfig": {

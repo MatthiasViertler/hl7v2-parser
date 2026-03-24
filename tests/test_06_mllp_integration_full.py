@@ -135,3 +135,42 @@ def test_mllp_concurrent_clients():
     for t in threads: t.join()
 
     assert all("MSA|AA|" in ack for ack in results)
+
+def test_mllp_demo_routing_traffic():
+    """
+    Send varied HL7 messages to populate Prometheus metrics for Grafana demo.
+    This test does NOT assert routing correctness (covered elsewhere).
+    It simply generates realistic traffic for dashboards.
+    """
+
+    traffic_plan = [
+        ("ADT", "A01", 10),
+        ("ADT", "A02", 5),
+        ("ADT", "A03", 2),
+        ("ORU", "R01", 7),
+        ("ORU", "R30", 3),
+        ("VXU", "V04", 4),
+    ]
+
+    for msg_type, trigger, count in traffic_plan:
+        for i in range(count):
+
+            # Base HL7
+            hl7 = (
+                f"MSH|^~\\&|SRC|HOSP|EHR|HOSP|202402201400||"
+                f"{msg_type}^{trigger}|DEMO{msg_type}{trigger}{i}|P|2.5.1\r"
+                f"PID|1||{msg_type}{trigger}{i}^^^HOSP^MR||Demo^Traffic||19800101|M\r"
+                f"PV1|1|I"
+            )
+
+            # ORU messages require OBR + OBX
+            if msg_type == "ORU":
+                hl7 += (
+                    "\rOBR|1|1234|5678|TEST^Demo Order"
+                    "\rOBX|1|ST|TEST^Demo Result||42"
+                )
+
+            ack = mllp_send(hl7)
+            assert f"MSA|AA|DEMO{msg_type}{trigger}{i}" in ack
+
+    time.sleep(1.0)

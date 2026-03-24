@@ -1,0 +1,38 @@
+# This file is designed to intentionally create divergence between:
+# - Messages per Destination
+# - Routing Rule Hits
+# …and to demonstrate fallback and UNKNOWN routing.
+
+
+routes:
+  ADT:
+    folder: routed/ADT
+    triggers:
+      A01: routed/ADT/admissions
+      A02: routed/ADT/transfers
+      A03: routed/ADT/discharges
+
+  ORU:
+    folder: routed/ORU
+    triggers:
+      R01: routed/ORU/results
+      R30: routed/ORU/quality_control   # uncommon trigger
+      Z99: routed/UNKNOWN               # weird trigger → UNKNOWN
+
+  ORM:
+    folder: routed/ORM
+    triggers:
+      O01: routed/ORM/orders
+
+  VXU:
+    folder: routed/VXU
+    triggers:
+      V04: routed/VXU/immunizations
+
+  SIU:
+    folder: routed/SIU
+    triggers:
+      S12: routed/SIU/scheduling
+
+  UNKNOWN:
+    folder: routed/UNKNOWN

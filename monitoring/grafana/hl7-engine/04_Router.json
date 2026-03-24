@@ -9,79 +9,55 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "DS_PROMETHEUS"
+        },
+        "query": "label_values(hl7_router_messages_routed_total, instance)",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      },
+      {
+        "name": "job",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "DS_PROMETHEUS"
+        },
+        "query": "label_values(hl7_router_messages_routed_total, job)",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      },
+      {
+        "name": "route",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "DS_PROMETHEUS"
+        },
+        "query": "label_values(hl7_router_messages_routed_total, route)",
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false,
+        "hide": 0
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
-      "type": "stat",
-      "title": "Messages Routed (1m rate)",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        { "refId": "A", "expr": "rate(hl7_router_messages_routed_total[1m])" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": 0 },
-              { "color": "green", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "orientation": "horizontal",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 2,
-      "type": "stat",
-      "title": "Routing Errors (5m)",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        { "refId": "A", "expr": "increase(hl7_router_routing_errors_total[5m])" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": 0 },
-              { "color": "red", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "orientation": "horizontal",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 3,
       "type": "timeseries",
       "title": "Routing Latency p95/p99",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 4 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -119,35 +95,43 @@
       }
     },
     {
-      "id": 4,
-      "type": "timeseries",
-      "title": "Routing Failures by Destination (5m)",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 4 },
+      "id": 2,
+      "type": "stat",
+      "title": "Routing Errors (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
       },
       "targets": [
-        {
-          "refId": "A",
-          "expr": "increase(hl7_router_destination_errors_total[5m])",
-          "legendFormat": "{{destination}}"
-        }
+        { "refId": "A", "expr": "increase(hl7_router_routing_errors_total[5m])" }
       ],
       "fieldConfig": {
-        "defaults": { "unit": "none" },
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "bottom" },
-        "tooltip": { "mode": "single" }
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
       }
     },
     {
-      "id": 5,
+      "id": 3,
       "type": "timeseries",
       "title": "Messages per Destination (1m rate)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 10 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 6 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -161,7 +145,33 @@
       ],
       "fieldConfig": {
         "defaults": { "unit": "ops" },
-        "overrides": []
+        "overrides":
+        [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.valueName",
+                "value": "large"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.destination}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": { "displayMode": "table", "placement": "bottom" },
@@ -169,10 +179,71 @@
       }
     },
     {
-      "id": 6,
+      "id": 4,
+      "type": "stat",
+      "title": "Messages Routed (1m rate)",
+      "description": "instance=$instance, job=$job",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 4 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        { "refId": "A", "expr": "rate(hl7_router_messages_routed_total[1m])" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.valueName",
+                "value": "large"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.route}"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    
+    {
+      "id": 5,
       "type": "timeseries",
       "title": "Routing Rule Hits (per minute)",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 10 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -186,7 +257,84 @@
       ],
       "fieldConfig": {
         "defaults": { "unit": "ops" },
-        "overrides": []
+        "overrides": 
+        [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.valueName",
+                "value": "large"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.rule}"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Routing Failures by Destination (5m)",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(hl7_router_destination_errors_total[5m])",
+          "legendFormat": "{{destination}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": 
+        [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.valueName",
+                "value": "large"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__field.labels.destination}"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": { "displayMode": "table", "placement": "bottom" },

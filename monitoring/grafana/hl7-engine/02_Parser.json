@@ -84,43 +84,9 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Messages Parsed (1m rate)",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "DS_PROMETHEUS"
-      },
-      "targets": [
-        { "refId": "A", "expr": "rate(hl7_parser_messages_parsed_total[1m])" }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": 0 },
-              { "color": "green", "value": 1 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "orientation": "horizontal",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 3,
-      "type": "stat",
       "title": "Parse Errors (5m)",
       "description": "instance=$instance, job=$job",
-      "gridPos": { "h": 10, "w": 6, "x": 12, "y": 4 },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"
@@ -175,6 +141,40 @@
       }
     },
     {
+      "id": 3,
+      "type": "stat",
+      "title": "Messages Parsed (1m rate)",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "DS_PROMETHEUS"
+      },
+      "targets": [
+        { "refId": "A", "expr": "rate(hl7_parser_messages_parsed_total[1m])" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
       "id": 4,
       "type": "timeseries",
       "title": "Message Types (per minute)",
@@ -217,7 +217,7 @@
       "id": 5,
       "type": "timeseries",
       "title": "Invalid Segments (5m)",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 8 },
       "datasource": {
         "type": "prometheus",
         "uid": "DS_PROMETHEUS"

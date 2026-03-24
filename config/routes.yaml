@@ -9,6 +9,7 @@ routes:
     folder: "routed/ADT"
     triggers:
       A01: "routed/ADT/A01"
+      A02: "routed/ADT/A02"
       A03: "routed/ADT/A03"
       A04: "routed/ADT/A04"
       A08: "routed/ADT/A08"

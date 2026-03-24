@@ -36,6 +36,37 @@ class Router:
             config = yaml.safe_load(f)
 
         self.routes = config.get("routes", {})
+        
+        # ------------------------------------------------------------
+        # METRIC INITIALIZATION
+        # ------------------------------------------------------------
+
+        # Initialize destination error counters
+        for msg_type, entry in self.routes.items():
+            metrics.inc(
+                "router_destination_errors_total",
+                amount=0,
+                labels={"destination": msg_type},
+            )
+
+        # Initialize rule hit counters
+        for msg_type, entry in self.routes.items():
+            triggers = entry.get("triggers", {})
+            for trigger in triggers:
+                rule_name = f"{msg_type}_{trigger}"
+                metrics.inc(
+                    "router_rule_hits_total",
+                    amount=0,
+                    labels={"rule": rule_name},
+                )
+
+        # Initialize messages-by-destination counters
+        for msg_type in self.routes.keys():
+            metrics.inc(
+                "router_messages_by_destination_total",
+                amount=0,
+                labels={"destination": msg_type},
+            )
 
     # ------------------------------------------------------------
     # INTERNAL HELPERS
@@ -77,7 +108,10 @@ class Router:
         msg_type = (msg_type or "").upper()
         trigger = self._extract_trigger(raw_hl7)
 
+        #=======================
         # 1) Known message type
+        #=======================
+
         if msg_type in self.routes:
             entry = self.routes[msg_type]
 
@@ -86,10 +120,23 @@ class Router:
 
             self._ensure_folder(parent_folder)
 
+            #==================
             # 1a) Known trigger
+            #==================
+
             if trigger in triggers:
                 routed_path = triggers[trigger]
                 self._ensure_folder(routed_path)
+
+                # Metric: rule hit
+                rule_name = f"{msg_type}_{trigger}"
+                metrics.inc("router_rule_hits_total", labels={"rule": rule_name})
+
+                # Metric: messages per destination
+                metrics.inc(
+                    "router_messages_by_destination_total",
+                    labels={"destination": msg_type},
+                )
 
                 metrics.inc(
                     "router_messages_routed_total",
@@ -97,18 +144,37 @@ class Router:
                 )
                 return parent_folder, routed_path
 
+            #=========================================
             # 1b) Unknown trigger → fallback to parent
+            #=========================================
+
+            # Metric: message by destination
+            metrics.inc(
+                "router_messages_by_destination_total",
+                labels={"destination": msg_type},
+            )
+
             metrics.inc(
                 "router_messages_routed_total",
                 labels={"route": msg_type},
             )
+
             return parent_folder, parent_folder
 
+        #========================
         # 2) Unknown message type
+        #========================
+
         unknown = self.routes.get("UNKNOWN", {})
         parent_folder = unknown.get("folder", "routed/UNKNOWN")
 
         self._ensure_folder(parent_folder)
+
+        # Metric: destination failure
+        metrics.inc(
+            "router_destination_errors_total",
+            labels={"destination": "UNKNOWN"},
+        )
 
         metrics.inc(
             "router_routing_errors_total",

@@ -60,6 +60,23 @@ class Metrics:
         # --- Routing errors (unknown message type or trigger) ---
         self.inc("router_routing_errors_total", amount=0, labels={"route": "UNKNOWN"})
 
+        # --- Destination errors
+        self.inc("router_destination_errors_total", amount=0, labels={"destination": "ADT"})
+        self.inc("router_destination_errors_total", amount=0, labels={"destination": "ORM"})
+        self.inc("router_destination_errors_total", amount=0, labels={"destination": "ORU"})
+        self.inc("router_destination_errors_total", amount=0, labels={"destination": "UNKNOWN"})
+
+        # --- Rule hits
+        self.inc("router_rule_hits_total", amount=0, labels={"rule": "ADT_RULE"})
+        self.inc("router_rule_hits_total", amount=0, labels={"rule": "ORM_RULE"})
+        self.inc("router_rule_hits_total", amount=0, labels={"rule": "ORU_RULE"})
+
+        # --- Messages by destination
+        self.inc("router_messages_by_destination_total", amount=0, labels={"destination": "ADT"})
+        self.inc("router_messages_by_destination_total", amount=0, labels={"destination": "ORM"})
+        self.inc("router_messages_by_destination_total", amount=0, labels={"destination": "ORU"})
+        self.inc("router_messages_by_destination_total", amount=0, labels={"destination": "UNKNOWN"})
+
         # ==========================
         # MLLP Metrics: Connections, Bytes, Frames
         # ==========================
@@ -84,6 +101,9 @@ class Metrics:
         self.inc("ack_generated_total", amount=0, labels={"code": "AE"})
         self.inc("ack_generated_total", amount=0, labels={"code": "AR"})
         self.inc("ack_sent_total", amount=0)
+
+        self.inc("ack_generation_errors_total", amount=0, labels={"error_code": "BUILD_SIMPLE"})
+        self.inc("ack_generation_errors_total", amount=0, labels={"error_code": "BUILD_FROM_MSG"})
 
         # ==========================
         # Throughput Metrics

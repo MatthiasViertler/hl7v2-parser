@@ -88,12 +88,14 @@ GRAFANA_DB := $(GRAFANA_HOME)/data/grafana.db
 GRAFANA_LOG := $(GRAFANA_HOME)/logs/grafana.log
 
 # Provisioning directories inside Grafana
-GRAFANA_PROVISIONING_DST := $(GRAFANA_HOME)/conf/provisioning
+GRAFANA_CONFIG_DST := $(GRAFANA_HOME)/conf
+GRAFANA_PROVISIONING_DST := $(GRAFANA_CONFIG_DST)/provisioning
 GRAFANA_DASH_DST := $(GRAFANA_PROVISIONING_DST)/dashboards
 GRAFANA_DATASOURCE_DST := $(GRAFANA_PROVISIONING_DST)/datasources
 
 # Source files in our repo
 GRAFANA_DASH_SRC := $(shell pwd)/monitoring/grafana/hl7-engine
+GRAFANA_CONFIG_FILE_SRC := $(shell pwd)/monitoring/grafana/provisioning/grafana.ini
 GRAFANA_PROVISIONING_FILE_SRC := $(shell pwd)/monitoring/grafana/provisioning/dashboards/hl7-engine.yaml
 GRAFANA_DATASOURCE_FILE_SRC := $(shell pwd)/monitoring/grafana/provisioning/datasources/prometheus.yaml
 

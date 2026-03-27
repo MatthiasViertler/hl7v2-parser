@@ -61,6 +61,9 @@ grafana-sync-provisioning: ## Sync Grafana dashboards + provisioning files
 	@mkdir -p $(GRAFANA_DASH_DST)/hl7-engine
 	@mkdir -p $(GRAFANA_DATASOURCE_DST)
 
+	# Copy grafana config file
+	@cp $(GRAFANA_CONFIG_FILE_SRC) $(GRAFANA_CONFIG_DST)
+	
 	# Copy dashboards
 	@cp $(GRAFANA_DASH_SRC)/*.json $(GRAFANA_DASH_DST)/hl7-engine/
 

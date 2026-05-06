@@ -189,6 +189,15 @@ pip install -e .[benchmark]
 pip install -e .[dev]
 ```
 
+```markdown
+### Full Installation Details
+
+For a complete installation guide, including system dependencies, pyenv setup,
+Prometheus/Grafana configuration, and troubleshooting, see:
+
+👉 **[INSTALL.md](docs/INSTALL.md)**
+```
+
 ---
 
 ## Running the MLLP server
